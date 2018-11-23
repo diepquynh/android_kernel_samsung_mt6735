@@ -2124,8 +2124,6 @@ static inline int adopt_CAMERA_HW_FeatureControl(void *pBuf)
 	case SENSOR_FEATURE_GET_PDAF_DATA:
 	case SENSOR_FEATURE_GET_SENSOR_PDAF_CAPACITY:
 	case SENSOR_FEATURE_SET_ISO:
-	case SENSOR_FEATURE_GET_SENSOR_ATT_PERC_OFT:
-	case SENSOR_FEATURE_SET_SENSOR_ATT_PERC_OFT:
 		/*  */
 		if (copy_from_user
 		    ((void *)pFeaturePara, (void *)pFeatureCtrl->pFeaturePara, FeatureParaLen)) {
@@ -2308,8 +2306,6 @@ static inline int adopt_CAMERA_HW_FeatureControl(void *pBuf)
 	case SENSOR_FEATURE_GET_PDAF_INFO:
 	case SENSOR_FEATURE_GET_SENSOR_PDAF_CAPACITY:
 	case SENSOR_FEATURE_SET_ISO:
-	case SENSOR_FEATURE_GET_SENSOR_ATT_PERC_OFT:
-	case SENSOR_FEATURE_SET_SENSOR_ATT_PERC_OFT:
 		/*  */
 		if (copy_to_user
 		    ((void __user *)pFeatureCtrl->pFeaturePara, (void *)pFeaturePara,

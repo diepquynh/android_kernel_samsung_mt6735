@@ -257,7 +257,7 @@ static ssize_t hps_num_base_perf_serv_proc_write(
 		size_t count,
 		loff_t *pos)
 {
-	unsigned int len = 0, little_num_base_perf_serv = 0, big_num_base_perf_serv = 0;
+	int len = 0, little_num_base_perf_serv = 0, big_num_base_perf_serv = 0;
 	char desc[32];
 	unsigned int num_online;
 
@@ -341,10 +341,7 @@ static ssize_t hps_num_base_perf_serv_proc_write(
 
 		mutex_lock(&hps_ctxt.lock);
 
-		/* check base */
-		hps_ctxt.little_num_base_perf_serv_proc = little_num_base_perf_serv;
-		hps_ctxt.little_num_base_perf_serv =
-			max(little_num_base_perf_serv, hps_ctxt.little_num_base_perf_serv_touch);
+		hps_ctxt.little_num_base_perf_serv = little_num_base_perf_serv;
 		num_online = num_online_little_cpus();
 		if ((num_online < little_num_base_perf_serv) &&
 			(num_online <
@@ -358,10 +355,6 @@ static ssize_t hps_num_base_perf_serv_proc_write(
 		/* XXX: should we move mutex_unlock(&hps_ctxt.lock)
 			to earlier stage? no! */
 		mutex_unlock(&hps_ctxt.lock);
-		
-		pr_info("final result = %d, base_touch = %d, base_procfs = %d)\n",
-			hps_ctxt.little_num_base_perf_serv, hps_ctxt.little_num_base_perf_serv_touch,
-			hps_ctxt.little_num_base_perf_serv_proc);
 
 		return count;
 	}

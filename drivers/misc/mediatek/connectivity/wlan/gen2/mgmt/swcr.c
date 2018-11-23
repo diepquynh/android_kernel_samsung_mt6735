@@ -302,9 +302,6 @@ void dumpQueue(P_ADAPTER_T prAdapter)
 	DBGLOG(SW4, INFO, " rIndicatedRfbList %u\n", prAdapter->rRxCtrl.rIndicatedRfbList.u4NumElem);
 	DBGLOG(SW4, INFO, " ucNumIndPacket %u\n", prAdapter->rRxCtrl.ucNumIndPacket);
 	DBGLOG(SW4, INFO, " ucNumRetainedPacket %u\n", prAdapter->rRxCtrl.ucNumRetainedPacket);
-#if CFG_SUPPORT_MULTITHREAD
-	DBGLOG(SW4, INFO, " ucNumRxDataPacket %9u\n", prAdapter->rRxCtrl.rRxDataRfbList.u4NumElem);
-#endif
 
 }
 
@@ -473,16 +470,15 @@ VOID swCtrlCmdCategory0(P_ADAPTER_T prAdapter, UINT_8 ucCate, UINT_8 ucAction, U
 					u4rxfilter = prAdapter->u4OsPacketFilter;
 					if ((g_u4mDNSRXFilter & RX_MDNS_FILTER_IPV4) ||
 					    (g_u4mDNSRXFilter & RX_MDNS_FILTER_IPV6)) {
-						u4rxfilter &= ~(PARAM_PACKET_FILTER_ALL_MULTICAST |
-								PARAM_PACKET_FILTER_MULTICAST);
+						u4rxfilter |= PARAM_PACKET_FILTER_ALL_MULTICAST;
 					}
 					fgUpdate = TRUE;
 				} else if (ucOpt0 == SWCR_RX_MDNS_FILTER_CMD_ADD) {
 					if (ucOpt1 < 31)
-						g_u4mDNSRXFilter &= ~(1 << ucOpt1);
+						g_u4mDNSRXFilter |= (1 << ucOpt1);
 				} else if (ucOpt0 == SWCR_RX_MDNS_FILTER_CMD_REMOVE) {
 					if (ucOpt1 < 31)
-						g_u4mDNSRXFilter |= (1 << ucOpt1);
+						g_u4mDNSRXFilter &= ~(1 << ucOpt1);
 				}
 
 				if (fgUpdate == TRUE) {
@@ -503,13 +499,8 @@ VOID swCtrlCmdCategory0(P_ADAPTER_T prAdapter, UINT_8 ucCate, UINT_8 ucAction, U
 					kalOidComplete(prAdapter->prGlueInfo,
 						   FALSE, sizeof(UINT_32), WLAN_STATUS_SUCCESS);
 				}
-				DBGLOG(SW4, INFO, "DNSRXFilter %x ucOpt[%x:%x] fgUpdate %x rxfilter %x, rStatus %x\n",
-				       g_u4mDNSRXFilter,
-				       ucOpt0,
-				       ucOpt1,
-				       fgUpdate,
-				       u4rxfilter,
-				       rStatus);
+/* DBGLOG(SW4, INFO,("SWCTRL_RX_MDNS_FILTER: g_u4mDNSRXFilter %x ucOpt0 %x ucOpt1 %x fgUpdate %x u4rxfilter %x, */
+/* rStatus %x\n", g_u4mDNSRXFilter, ucOpt0, ucOpt1, fgUpdate, u4rxfilter, rStatus)); */
 			}
 			break;
 		default:

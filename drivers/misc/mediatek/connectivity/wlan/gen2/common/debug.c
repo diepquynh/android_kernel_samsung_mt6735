@@ -36,13 +36,10 @@ typedef struct _CMD_TRACE_ENTRY {
 	} u;
 } CMD_TRACE_ENTRY, *P_CMD_TRACE_ENTRY;
 
-#define READ_CPUPCR_MAX_NUM 3
-
 typedef struct _COMMAND_ENTRY {
 	UINT_64 u8TxTime;
 	UINT_64 u8ReadFwTime;
 	UINT_32 u4ReadFwValue;
-	UINT_32 arCpupcrValue[READ_CPUPCR_MAX_NUM];
 	UINT_32 u4RelCID;
 	UINT_16 u2Counter;
 	struct COMMAND rCmd;
@@ -154,13 +151,9 @@ VOID wlanReadFwStatus(P_ADAPTER_T prAdapter)
 {
 	static UINT_16 u2CurEntryCmd;
 	P_COMMAND_ENTRY prCurCommand = &gprCommandEntry[u2CurEntryCmd];
-	UINT_8 i = 0;
-	GL_HIF_INFO_T *prHifInfo = &prAdapter->prGlueInfo->rHifInfo;
 
 	prCurCommand->u8ReadFwTime = sched_clock();
 	HAL_MCR_RD(prAdapter, MCR_D2HRM2R, &prCurCommand->u4ReadFwValue);
-	for (i = 0; i < READ_CPUPCR_MAX_NUM; i++)
-		prCurCommand->arCpupcrValue[i] = MCU_REG_READL(prHifInfo, CONN_MCU_CPUPCR);
 	u2CurEntryCmd++;
 	if (u2CurEntryCmd == TXED_COMMAND_BUF_MAX_NUM)
 		u2CurEntryCmd = 0;
@@ -305,12 +298,10 @@ VOID wlanDumpCommandFwStatus(VOID)
 
 	LOG_FUNC("Start\n");
 	for (; i < TXED_COMMAND_BUF_MAX_NUM; i++) {
-		LOG_FUNC(
-		"%d: Time %llu,Content %08x,Count %x,RelCID %08x,FwValue %08x,Time %llu,CPUPCR 0x%08x 0x%08x 0x%08x\n",
+		LOG_FUNC("%d: Time %llu, Content %08x, Count %x, RelCID %08x, ReadFwValue %08x, ReadFwTime %llu\n",
 			i, prCmd[i].u8TxTime, *(PUINT_32)(&prCmd[i].rCmd.ucCID),
 			prCmd[i].u2Counter, prCmd[i].u4RelCID,
-			prCmd[i].u4ReadFwValue, prCmd[i].u8ReadFwTime,
-			prCmd[i].arCpupcrValue[0], prCmd[i].arCpupcrValue[1], prCmd[i].arCpupcrValue[2]);
+			prCmd[i].u4ReadFwValue, prCmd[i].u8ReadFwTime);
 	}
 }
 
@@ -323,4 +314,3 @@ VOID wlanDumpMcuChipId(P_ADAPTER_T prAdapter)
 	pHifInfo = &prAdapter->prGlueInfo->rHifInfo;
 	DBGLOG(INIT, INFO, "Offset:0x%x, Value:0x%08x ", CONN_MCU_CHIPID, MCU_REG_READL(pHifInfo, CONN_MCU_CHIPID));
 }
-

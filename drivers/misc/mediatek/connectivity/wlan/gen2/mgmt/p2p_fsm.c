@@ -1654,7 +1654,6 @@ VOID p2pFsmRunEventMgmtFrameTx(IN P_ADAPTER_T prAdapter, IN P_MSG_HDR_T prMsgHdr
 {
 	P_P2P_FSM_INFO_T prP2pFsmInfo = (P_P2P_FSM_INFO_T) NULL;
 	P_MSG_P2P_MGMT_TX_REQUEST_T prMgmtTxMsg = (P_MSG_P2P_MGMT_TX_REQUEST_T) NULL;
-	P_MSDU_INFO_T prMgmtFrame = (P_MSDU_INFO_T) NULL;
 
 	do {
 		ASSERT_BREAK((prAdapter != NULL) && (prMsgHdr != NULL));
@@ -1667,10 +1666,9 @@ VOID p2pFsmRunEventMgmtFrameTx(IN P_ADAPTER_T prAdapter, IN P_MSG_HDR_T prMsgHdr
 			break;
 
 		prMgmtTxMsg = (P_MSG_P2P_MGMT_TX_REQUEST_T) prMsgHdr;
-		prMgmtFrame = prMgmtTxMsg->prMgmtMsduInfo;
 
 		p2pFuncTxMgmtFrame(prAdapter,
-				   &prP2pFsmInfo->rMgmtTxInfo, prMgmtFrame, prMgmtFrame->u8Cookie);
+				   &prP2pFsmInfo->rMgmtTxInfo, prMgmtTxMsg->prMgmtMsduInfo, prMgmtTxMsg->u8Cookie);
 
 	} while (FALSE);
 
@@ -2279,18 +2277,20 @@ p2pFsmRunEventMgmtFrameTxDone(IN P_ADAPTER_T prAdapter,
 
 		if (rTxDoneStatus != TX_RESULT_SUCCESS) {
 			DBGLOG(P2P, INFO, "Mgmt Frame TX Fail, Status: %d, seq NO. %d, Cookie: 0x%llx\n",
-				rTxDoneStatus, prMsduInfo->ucTxSeqNum, prMsduInfo->u8Cookie);
+				rTxDoneStatus, prMsduInfo->ucTxSeqNum, prMgmtTxReqInfo->u8Cookie);
 		} else {
 			fgIsSuccess = TRUE;
-			DBGLOG(P2P, TRACE, "Mgmt Frame TX Done. Cookie: 0x%llx\n", prMsduInfo->u8Cookie);
+			DBGLOG(P2P, TRACE, "Mgmt Frame TX Done.\n");
 		}
 
-		kalP2PIndicateMgmtTxStatus(prAdapter->prGlueInfo,
-					   prMsduInfo->u8Cookie,
-					   fgIsSuccess,
-					   prMsduInfo->prPacket, (UINT_32) prMsduInfo->u2FrameLength);
+		if (prMgmtTxReqInfo->prMgmtTxMsdu == prMsduInfo) {
+			kalP2PIndicateMgmtTxStatus(prAdapter->prGlueInfo,
+						   prMgmtTxReqInfo->u8Cookie,
+						   fgIsSuccess,
+						   prMsduInfo->prPacket, (UINT_32) prMsduInfo->u2FrameLength);
 
-		prMgmtTxReqInfo->prMgmtTxMsdu = NULL;
+			prMgmtTxReqInfo->prMgmtTxMsdu = NULL;
+		}
 
 	} while (FALSE);
 

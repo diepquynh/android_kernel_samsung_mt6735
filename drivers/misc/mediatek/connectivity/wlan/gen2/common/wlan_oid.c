@@ -6580,7 +6580,7 @@ wlanoidSetCurrentPacketFilter(IN P_ADAPTER_T prAdapter,
 
 		prAdapter->u4OsPacketFilter &= PARAM_PACKET_FILTER_P2P_MASK;
 		prAdapter->u4OsPacketFilter |= u4NewPacketFilter;
-		DBGLOG(OID, INFO, "prAdapter->u4OsPacketFilter: %#08x\n", prAdapter->u4OsPacketFilter);
+
 		return wlanSendSetQueryCmd(prAdapter,
 					   CMD_ID_SET_RX_FILTER,
 					   TRUE,

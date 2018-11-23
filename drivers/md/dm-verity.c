@@ -21,11 +21,6 @@
 #include <linux/reboot.h>
 #include <crypto/hash.h>
 
-#if defined(CONFIG_TZ_ICCC)
-#define CUSTOM_SMC_FID           0xB2000202
-#define SUBFUN_DMV_WRITE         210
-#endif
-
 #include <linux/ctype.h>
 
 #define DM_MSG_PREFIX			"verity"
@@ -138,27 +133,6 @@ struct dm_verity_prefetch_work {
 	sector_t block;
 	unsigned n_blocks;
 };
-
-uint32_t blowfish_smc_dmv_iccc(uint32_t p0, uint32_t p1, uint32_t p2, uint32_t p3)
-{
-	register uint32_t _r0 __asm__("r0") = p0;
-	register uint32_t _r1 __asm__("r1") = p1;
-	register uint32_t _r2 __asm__("r2") = p2;
-	register uint32_t _r3 __asm__("r3") = p3;
-
-	__asm__ __volatile__(
-		".arch_extension sec\n"
-		"smc	0\n"
-		: "+r"(_r0), "+r"(_r1), "+r"(_r2), "+r"(_r3)
-	);
-
-	p0 = _r0;
-	p1 = _r1;
-	p2 = _r2;
-	p3 = _r3;
-
-	return _r0;
-}
 
 static struct shash_desc *io_hash_desc(struct dm_verity *v, struct dm_verity_io *io)
 {
@@ -546,9 +520,7 @@ test_block_hash:
 				kunmap_atomic(page);
 #endif
 				v->hash_failed = 1;
-#if defined(CONFIG_TZ_ICCC)
-			printk(KERN_ERR "ICCC smc ret = %d \n",blowfish_smc_dmv_iccc(CUSTOM_SMC_FID, SUBFUN_DMV_WRITE, 1, 0));
-#endif
+
 				if (verity_handle_err(v, DM_VERITY_BLOCK_TYPE_DATA,
 					      io->block + b))
 

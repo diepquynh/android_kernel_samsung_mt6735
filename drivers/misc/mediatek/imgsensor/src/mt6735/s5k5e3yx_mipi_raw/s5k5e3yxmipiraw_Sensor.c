@@ -301,124 +301,6 @@ static void write_shutter(kal_uint16 shutter)
 }	/*	write_shutter  */
 
 
-/*************************************************************************
-* FUNCTION
-*	set_otp_data
-*
-* DESCRIPTION
-*	This function set otp of sensor to change exposure time.
-*
-* PARAMETERS
-*	value : exposured lines
-*
-* RETURNS
-*	None
-*
-* GLOBALS AFFECTED
-* 2016.10.07
-*************************************************************************/
-#if 0
-#define USE_OTP_ADDRESS	0x0a04	/* if customer hope that write to other address, it does be 0x0a04~0xa43 */
-static void set_otp_data(int value)/*index default is set to 0*/
-{
-	LOG_INF("set_otp_data Address %x at page 2 = %d\n", USE_OTP_ADDRESS, value);
-
-	write_cmos_sensor(0x3b40, 0x00);	/* write disable off */
-	write_cmos_sensor(0x3b45, 0x02);	/* for single write mode */
-
-	write_cmos_sensor(0x0a00, 0x04);	/* make initial state */
-	write_cmos_sensor(0x0a02, 0x02);	/* set the PAGE2 of OTP */
-	write_cmos_sensor(0x0a00, 0x03);	/* set write mode of NVM controller Interface1 */
-
-	write_cmos_sensor(USE_OTP_ADDRESS, value);	/* write 0x01 to 1st byte buffer of PAGE0 */
-
-	mdelay(100);	/* wait > 36ms */
-
-	write_cmos_sensor(0x0a00, 0x04);	/*make initial state*/
-	write_cmos_sensor(0x0a00, 0x00);	/*disable NVM controller*/
-	write_cmos_sensor(0x3440, 0x01);	/*write disable on*/
-}
-
-static kal_uint32 get_otp_data(void)/*index default is set to 0*/
-{
-	int value = 0x80;
-
-	write_cmos_sensor(0x0A00, 0x04);	/*make initial state write*/
-	write_cmos_sensor(0x0A02, 0x02);	/*set the PAGE2 of OTP */
-	write_cmos_sensor(0x0A00, 0x01);	/*set read mode of NVM controller Interface1 */
-
-	mdelay(1);	/*to wait Tmin = 47us*/
-
-	value = read_cmos_sensor(USE_OTP_ADDRESS);	/*read the 1st byte data of PAGE2 from buffer */
-
-	write_cmos_sensor(0x0A00, 0x04);	/*make initial state write*/
-	write_cmos_sensor(0x0A00, 0x00);		/*disable NVM controller*/
-
-	LOG_INF("get_otp_data Address %x at page 2 = %d\n", USE_OTP_ADDRESS, value);
-
-	return value;
-}
-#endif
-
-static void set_otps_data(char *data, int page)/*index default is set to 0*/
-{
-	LOG_INF("Write Lens shading Cal flag to PAGE%d = %d\n", page, data[0]);
-	LOG_INF("write Lens shading Tbl Cal Index to PAGE%d = %d\n", page, data[1]);
-	LOG_INF("write R Cal data to  PAGE%d = %d\n", page, data[2]);
-	LOG_INF("write G Cal data to  PAGE%d = %d\n", page, data[3]);
-	LOG_INF("write B Cal data to  PAGE%d = %d\n", page, data[4]);
-
-	write_cmos_sensor(0x3b40, 0x00);	/* write disable off */
-	write_cmos_sensor(0x3b45, 0x02);	/* for single write mode */
-
-	write_cmos_sensor(0x0a00, 0x04);	/* make initial state */
-	write_cmos_sensor(0x0a02, page);	/* set the PAGE of OTP */
-	write_cmos_sensor(0x0a00, 0x03);	/* set write mode of NVM controller Interface1 */
-
-	write_cmos_sensor(0x0A04, data[1]);	/* write to 1st byte buffer of PAGE */
-	write_cmos_sensor(0x0A05, data[2]);	/* write to 2nd byte buffer of PAGE */
-	write_cmos_sensor(0x0A06, data[3]);	/* write to 3rd byte buffer of PAGE */
-	write_cmos_sensor(0x0A07, data[4]);	/* write to 4th byte buffer of PAGE */
-	write_cmos_sensor(0x0A08, data[5]); /* write to 5th byte buffer of PAGE */
-
-	mdelay(100);	/* wait > 36ms */
-
-	write_cmos_sensor(0x0a00, 0x04);	/*make initial state*/
-	write_cmos_sensor(0x0a00, 0x00);	/*disable NVM controller*/
-	write_cmos_sensor(0x3440, 0x01);	/*write disable on*/
-}
-
-
-static void get_otps_data(char *data, int page)
-{
-	write_cmos_sensor(0x0A00, 0x04);	/*make initial state write*/
-	write_cmos_sensor(0x0A02, page);	/*set the PAGE of OTP */
-	write_cmos_sensor(0x0A00, 0x01);	/*set read mode of NVM controller Interface1 */
-
-	mdelay(1);	/*to wait Tmin = 47us*/
-
-	data[1] = read_cmos_sensor(0x0A04); /*read the 1st byte data of page from buffer */
-	data[2] = read_cmos_sensor(0x0A05); /*read the 2nd byte data of page from buffer */
-	data[3] = read_cmos_sensor(0x0A06); /*read the 3rd byte data of page from buffer */
-	data[4] = read_cmos_sensor(0x0A07); /*read the 4th byte data of page from buffer */
-	data[5] = read_cmos_sensor(0x0A08); /*read the 5th byte data of page from buffer */
-
-	write_cmos_sensor(0x0A00, 0x04);	/*make initial state write*/
-	write_cmos_sensor(0x0A00, 0x00);	/*disable NVM controller*/
-
-	LOG_INF("Read Lens shading Cal flag PAGE%d = %d\n", page, data[1]);
-	LOG_INF("Read Lens shading Tbl Cal Index PAGE%d = %d\n", page, data[2]);
-	LOG_INF("Read R Cal data PAGE%d = %d\n", page, data[3]);
-	LOG_INF("Read G Cal data PAGE%d = %d\n", page, data[4]);
-	LOG_INF("Read B Cal data PAGE%d = %d\n", page, data[5]);
-}
-
-/*
-	OTP function end
-	==============================================
-*/
-
-
 
 /*************************************************************************
 * FUNCTION
@@ -1130,9 +1012,7 @@ static kal_uint32 open(void)
 	//const kal_uint8 i2c_addr[] = {IMGSENSOR_WRITE_ID_1, IMGSENSOR_WRITE_ID_2};
 	kal_uint8 i = 0;
 	kal_uint8 retry = 2;
-	kal_uint32 sensor_id = 0;
-	/*char temp[8];*/
-
+	kal_uint32 sensor_id = 0; 
 	LOG_1;
 	LOG_2;
 	//sensor have two i2c address 0x6c 0x6d & 0x21 0x20, we should detect the module used i2c address
@@ -1156,15 +1036,7 @@ static kal_uint32 open(void)
 	}		 
 	if (imgsensor_info.sensor_id != sensor_id)
 		return ERROR_SENSOR_CONNECT_FAIL;
-
-	/* To get otp info from page 0~3 */
-/*
-		get_otps_data(temp, 0);
-		get_otps_data(temp, 1);
-		get_otps_data(temp, 2);
-		get_otps_data(temp, 3);
-*/
-
+	
 	/* initail sequence write in  */
 	sensor_init();
 
@@ -1789,16 +1661,6 @@ static kal_uint32 feature_control(MSDK_SENSOR_FEATURE_ENUM feature_id,
             LOG_INF("SENSOR_SET_SENSOR_IHDR LE=%d, SE=%d, Gain=%d\n",(UINT16)*feature_data,(UINT16)*(feature_data+1),(UINT16)*(feature_data+2));
             ihdr_write_shutter_gain((UINT16)*feature_data,(UINT16)*(feature_data+1),(UINT16)*(feature_data+2));
 			break;
-
-		case SENSOR_FEATURE_GET_SENSOR_ATT_PERC_OFT:
-			get_otps_data(feature_para, feature_para[0]);
-			*feature_para_len = 8;	/*0=page 1,2=LSC 3,4,5=AWB*/
-			break;
-		case SENSOR_FEATURE_SET_SENSOR_ATT_PERC_OFT:
-			set_otps_data(feature_para, feature_para[0]);
-			*feature_para_len = 8;
-			break;
-
 		default:
 			break;
 	}

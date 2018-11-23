@@ -1342,21 +1342,16 @@ kalProcessRxPacket(IN P_GLUE_INFO_T prGlueInfo, IN PVOID pvPacket, IN PUINT_8 pu
 		   IN BOOLEAN fgIsRetain, IN ENUM_CSUM_RESULT_T aerCSUM[])
 {
 	WLAN_STATUS rStatus = WLAN_STATUS_SUCCESS;
-	if (pvPacket == NULL) {
-		DBGLOG(INIT, WARN, "%s: pvPacket is a null value\n", __func__);
-		rStatus = WLAN_STATUS_FAILURE;
-	} else {
-		struct sk_buff *skb = (struct sk_buff *)pvPacket;
+	struct sk_buff *skb = (struct sk_buff *)pvPacket;
 
-		skb->data = pucPacketStart;
-		skb_reset_tail_pointer(skb);	/* reset tail pointer first, for 64bit kernel,we should call linux kernel API */
-		skb_trim(skb, 0);	/* only if skb->len > len, then skb_trim has effect */
-		skb_put(skb, u4PacketLen);	/* shift tail and skb->len to correct value */
+	skb->data = pucPacketStart;
+	skb_reset_tail_pointer(skb);	/* reset tail pointer first, for 64bit kernel,we should call linux kernel API */
+	skb_trim(skb, 0);	/* only if skb->len > len, then skb_trim has effect */
+	skb_put(skb, u4PacketLen);	/* shift tail and skb->len to correct value */
 
 #if CFG_TCP_IP_CHKSUM_OFFLOAD
-		kalUpdateRxCSUMOffloadParam(skb, aerCSUM);
+	kalUpdateRxCSUMOffloadParam(skb, aerCSUM);
 #endif
-	}
 
 	return rStatus;
 }
@@ -2967,10 +2962,7 @@ int rx_thread(void *data)
 	P_GLUE_INFO_T prGlueInfo = *((P_GLUE_INFO_T *) netdev_priv(dev));
 	P_ADAPTER_T prAdapter;
 	int ret = 0;
-	P_RX_CTRL_T prRxCtrl = &prGlueInfo->prAdapter->rRxCtrl;
-	P_SW_RFB_T prSwRfb = (P_SW_RFB_T) NULL;
 
-	KAL_SPIN_LOCK_DECLARATION();
 	KAL_WAKELOCK_DECLARE(rRxThreadWakeLock);
 
 	prAdapter = prGlueInfo->prAdapter;
@@ -2997,47 +2989,7 @@ int rx_thread(void *data)
 		if (!KAL_WAKE_LOCK_ACTIVE(prAdapter, &rRxThreadWakeLock))
 			KAL_WAKE_LOCK(prAdapter, &rRxThreadWakeLock);
 		if (test_and_clear_bit(GLUE_FLAG_RX_BIT, &prGlueInfo->ulFlag)) {
-			prRxCtrl->ucNumIndPacket = 0;
-			prRxCtrl->ucNumRetainedPacket = 0;
-			do {
-				KAL_ACQUIRE_SPIN_LOCK(prAdapter, SPIN_LOCK_RX_DATA_QUE);
-				QUEUE_REMOVE_HEAD(&prRxCtrl->rRxDataRfbList, prSwRfb, P_SW_RFB_T);
-				KAL_RELEASE_SPIN_LOCK(prAdapter, SPIN_LOCK_RX_DATA_QUE);
-
-				if (prSwRfb) {
-					switch (prSwRfb->ucPacketType) {
-					case HIF_RX_PKT_TYPE_DATA:
-						nicRxProcessDataPacket(prAdapter, prSwRfb);
-						break;
-
-					default:
-						/* This case should never happen */
-						RX_INC_CNT(prRxCtrl, RX_TYPE_ERR_DROP_COUNT);
-						RX_INC_CNT(prRxCtrl, RX_DROP_TOTAL_COUNT);
-						DBGLOG(RX, ERROR, "ucPacketType = %d\n", prSwRfb->ucPacketType);
-						nicRxReturnRFB(prAdapter, prSwRfb);	/* need to free it */
-						break;
-					}
-				} else {
-					break;
-				}
-			} while (TRUE);
-			if (prRxCtrl->ucNumIndPacket > 0) {
-				RX_ADD_CNT(prRxCtrl, RX_DATA_INDICATION_COUNT, prRxCtrl->ucNumIndPacket);
-				RX_ADD_CNT(prRxCtrl, RX_DATA_RETAINED_COUNT, prRxCtrl->ucNumRetainedPacket);
-
-				/* DBGLOG(RX, INFO, ("%d packets indicated, Retained cnt = %d\n", */
-				/* prRxCtrl->ucNumIndPacket, prRxCtrl->ucNumRetainedPacket)); */
-			#if CFG_NATIVE_802_11
-				kalRxIndicatePkts(prAdapter->prGlueInfo,
-						  (UINT_32) prRxCtrl->ucNumIndPacket,
-						  (UINT_32) prRxCtrl->ucNumRetainedPacket);
-			#else
-				kalRxIndicatePkts(prAdapter->prGlueInfo,
-						  prRxCtrl->apvIndPacket,
-						  (UINT_32) prRxCtrl->ucNumIndPacket);
-			#endif
-			}
+			nicRxProcessRFBs(prAdapter);
 			KAL_WAKE_LOCK_TIMEOUT(prAdapter, &prGlueInfo->rTimeoutWakeLock,
 				MSEC_TO_JIFFIES(WAKE_LOCK_RX_TIMEOUT));
 		}
@@ -3458,9 +3410,6 @@ VOID kalScanDone(IN P_GLUE_INFO_T prGlueInfo, IN ENUM_KAL_NETWORK_TYPE_INDEX_T e
 
 	prAisFsmInfo = &(prGlueInfo->prAdapter->rWifiVar.rAisFsmInfo);
 	/* report all queued beacon/probe response frames  to upper layer */
-#if CFG_SUPPORT_ADD_CONN_AP
-	wlanCheckConnectedAP(prGlueInfo->prAdapter);
-#endif
 	scanReportBss2Cfg80211(prGlueInfo->prAdapter, BSS_TYPE_INFRASTRUCTURE, NULL);
 	cnmTimerStopTimer(prGlueInfo->prAdapter, &prAisFsmInfo->rScanDoneTimer);
 

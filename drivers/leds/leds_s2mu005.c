@@ -724,7 +724,7 @@ static void s2mu005_led_enable_ctrl(int mode)
 }
 
 // sysfs functions
-//#define SYSFS_BEFORE_PV
+#define SYSFS_BEFORE_PV
 
 extern void get_imx219_mfr_info(u8 *data);
 extern unsigned int get_imx219_af_macro_cal(void);

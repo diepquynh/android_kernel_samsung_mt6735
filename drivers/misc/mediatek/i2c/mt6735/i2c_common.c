@@ -48,12 +48,12 @@ int string2hex(const char *buffer, int cnt)
 	return c;
 }
 
-char *get_hexbuffer(char *data_buffer, char *hex_buffer, int str_len)
+char *get_hexbuffer(char *data_buffer, char *hex_buffer)
 {
 	char *ptr = data_buffer;
 	int index = 0;
 
-	while (*ptr && *++ptr && str_len--) {
+	while (*ptr && *++ptr) {
 		*(hex_buffer + index++) = string2hex(ptr - 1, 2);
 		ptr++;
 	}
@@ -221,7 +221,8 @@ static ssize_t set_config(struct device *dev, struct device_attribute *attr, con
 	int timing;
 	int trans_num;
 	int trans_auxlen;
-	int data_len;
+	int dir = 0;
+
 	int number = 0;
 	int length = 0;
 	unsigned int ext_flag = 0;
@@ -237,12 +238,11 @@ static ssize_t set_config(struct device *dev, struct device_attribute *attr, con
 			&bus_id, &address, &operation, &trans_mode, &trans_stop,
 			&speed_mode, &pushpull_mode, &query_mode, &timing, &trans_num,
 			&trans_auxlen,&dir, data_buffer) ) { */
-	if (sscanf(buf, "%d %x %d %d %d %d %d %d %d %d %d %d %1023s", &bus_id, &address, &operation, &trans_mode,
+	if (sscanf(buf, "%d %x %d %d %d %d %d %d %d %d %d %s", &bus_id, &address, &operation, &trans_mode,
 		&trans_stop, &speed_mode, &pushpull_mode, &query_mode, &timing, &trans_num,
-		&trans_auxlen, &data_len, data_buffer) != 0) {
+		&trans_auxlen, data_buffer) != 0) {
 		if ((address != 0) && (operation <= 2)) {
-			/* data_len is transfer bytes, offset address + write data */
-			length = 2 * data_len;
+			length = strlen(data_buffer);
 			if (operation == 0) {
 				ext_flag |= I2C_WR_FLAG;
 				number = (trans_auxlen << 8) | (length >> 1);	/* /TODO:need to confitm 8 Or 16 */
@@ -257,6 +257,8 @@ static ssize_t set_config(struct device *dev, struct device_attribute *attr, con
 				I2CERR("invalid operation\n");
 				goto err;
 			}
+			if (dir > 0)
+				ext_flag |= I2C_DIRECTION_FLAG;
 
 			if (trans_mode == 0) {
 				/* default is fifo */
@@ -328,7 +330,7 @@ static ssize_t set_config(struct device *dev, struct device_attribute *attr, con
 				}
 			}
 
-			get_hexbuffer(data_buffer, vir_addr, length);
+			get_hexbuffer(data_buffer, vir_addr);
 			I2CLOG("bus_id:%d,address:%x,count:%x,ext_flag:0x%x,timing:%d\n", bus_id,
 			       address, number, ext_flag, timing);
 			I2CLOG("data_buffer:%s\n", data_buffer);
@@ -354,26 +356,26 @@ static ssize_t set_config(struct device *dev, struct device_attribute *attr, con
 
 				if (operation == 1) {
 					hex2string(vir_addr, tmpbuffer, length >> 1);
-					snprintf(data_buffer, sizeof(data_buffer), "1 %s", tmpbuffer);
+					sprintf(data_buffer, "1 %s", tmpbuffer);
 					I2CLOG("received data: %s\n", tmpbuffer);
 				} else if (operation == 0) {
 					hex2string(vir_addr, tmpbuffer, trans_auxlen);
-					snprintf(data_buffer, sizeof(data_buffer), "1 %s", tmpbuffer);
+					sprintf(data_buffer, "1 %s", tmpbuffer);
 					I2CLOG("received data: %s\n", tmpbuffer);
 				} else {
-					snprintf(data_buffer, sizeof(data_buffer), "1 %s", "00");
+					sprintf(data_buffer, "1 %s", "00");
 				}
 				I2CLOG("Actual return Value:%d 0x%p\n", ret, vir_addr);
 			} else if (ret < 0) {
 
 				if (ret == -EINVAL)
-					snprintf(data_buffer, sizeof(data_buffer), "0 %s", "Invalid Parameter");
+					sprintf(data_buffer, "0 %s", "Invalid Parameter");
 				else if (ret == -ETIMEDOUT)
-					snprintf(data_buffer, sizeof(data_buffer), "0 %s", "Transfer Timeout");
+					sprintf(data_buffer, "0 %s", "Transfer Timeout");
 				else if (ret == -EREMOTEIO)
-					snprintf(data_buffer, sizeof(data_buffer), "0 %s", "Ack Error");
+					sprintf(data_buffer, "0 %s", "Ack Error");
 				else
-					snprintf(data_buffer, sizeof(data_buffer), "0 %s", "unknown error");
+					sprintf(data_buffer, "0 %s", "unknown error");
 				I2CLOG("Actual return Value:%d 0x%p\n", ret, vir_addr);
 			}
 

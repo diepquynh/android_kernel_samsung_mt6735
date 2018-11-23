@@ -1159,7 +1159,7 @@
 #define CFG_NUM_OF_RX1_HIF_DESC                 2
 
 /*! Max. buffer hold by QM */
-#define CFG_NUM_OF_QM_RX_PKT_NUM                512
+#define CFG_NUM_OF_QM_RX_PKT_NUM                120
 
 /*! Maximum number of SW RX packet buffer */
 #define CFG_RX_MAX_PKT_NUM                      ((CFG_NUM_OF_RX0_HIF_DESC + CFG_NUM_OF_RX1_HIF_DESC) * 3 \
@@ -1612,8 +1612,6 @@
  *------------------------------------------------------------------------------
  */
 #define CFG_SUPPORT_NCHO		1
-
-#define CFG_SUPPORT_ADD_CONN_AP		1
 
 /*******************************************************************************
 *                             D A T A   T Y P E S

@@ -355,11 +355,8 @@ static unsigned int otp_af_pan_cal = -1;
 static u8 rear_module_id[11] = {0};
 #endif
 
-static int NO_Read_otp_sysfs_info = 1;
-extern int is_imx219_open;
-
 // update sysfs data
-static int update_sysfs_information(void)
+static void update_sysfs_information(void)
 {
 	u8 slave_id = 0xB0;
 	u16 mfr_info_offset = 0x20; // manufacturer information
@@ -370,15 +367,12 @@ static int update_sysfs_information(void)
 #endif
 	if ( read_imx219_eeprom_size(slave_id, mfr_info_offset, otp_mfr_info, 11) != 0 ) {
 		pr_err("%s: manufacturer_information init err: %s\n", __func__, otp_mfr_info);
-		return 1;
 	}
 	if ( read_imx219_eeprom_size(slave_id, macro_cal_offset, (u8 *)&otp_af_macro_cal, 4) != 0 ) {
 		pr_err("%s: af_macro_cal init err: %u\n", __func__, otp_af_macro_cal);
-		return 1;
 	}
 	if ( read_imx219_eeprom_size(slave_id, pan_cal_offset, (u8 *)&otp_af_pan_cal, 4) != 0 ) {
 		pr_err("%s: af_pan_cal init err: %u\n", __func__, otp_af_pan_cal);
-		return 1;
 	}
 	pr_err("%s: manufacturer_info[%s], af_macro_cal:%u, af_pan_cal:%u\n",
 		__func__, otp_mfr_info, otp_af_macro_cal, otp_af_pan_cal);
@@ -386,34 +380,18 @@ static int update_sysfs_information(void)
 #if defined (CONFIG_GET_REAR_MODULE_ID)
 	if (read_imx219_eeprom_size(slave_id, moduleId_offset, rear_module_id, 10) != 0) {
 		pr_err("%s: module_id read err: %s\n", __func__, rear_module_id);
-		return 1;
 	}
 	pr_err("%s: module_id[%c%c%c%c%c%02x%02x%02x%02x%02x]\n", __func__,
 		rear_module_id[0], rear_module_id[1], rear_module_id[2], rear_module_id[3], rear_module_id[4],
-		rear_module_id[5], rear_module_id[6], rear_module_id[7], rear_module_id[8], rear_module_id[9]);
+		rear_module_id[5], rear_module_id[6], rear_module_id[7], rear_module_id[8], rear_module_id[9]);		
 #endif
-	return 0;
 }
-
-void imx219_update_sysfs_information(void)
-{
-	if(NO_Read_otp_sysfs_info)
-	{
-		if( update_sysfs_information() ) {
-			CAM_CALERR("sysfs read failed!! otp_mfr_info=%s\n", otp_mfr_info);
-		} else {
-			NO_Read_otp_sysfs_info = 0;
-			CAM_CALERR("sysfs read ok!! otp_mfr_info=%s\n", otp_mfr_info);
-		}
-	}
-}
-
 
 // interface functions
 void get_imx219_mfr_info(u8 *data)
 {
 	memcpy((void *)data, (void *)otp_mfr_info, 11);
-	data[11] = '\0';
+	otp_mfr_info[11] = '\0';
 }
 unsigned int get_imx219_af_macro_cal(void)
 {
@@ -427,9 +405,9 @@ unsigned int get_imx219_af_pan_cal(void)
 void get_imx219_moduleid(u8 *data)
 {
 	memcpy((void *)data, (void *)rear_module_id,10);
-	data[10] = '\0';
+	rear_module_id[10] = '\0';
 }
-#endif
+#endif 
 
 /*******************************************************************************
 *
@@ -461,16 +439,7 @@ static long CAM_CAL_Ioctl(
 	} else {
 */
 
-	int retry = 50;
-	while(is_imx219_open==0) {
-		if(retry <= 0) {
-			CAM_CALERR("Sensor is not ready. return error!\n");
-			return -EFAULT;
-		}
-		msleep(10);
-		CAM_CALERR("Sensor is not ready. wait 10ms retry=%d\n", retry);
-		retry--;
-	}
+	update_sysfs_information();
 
 	if (_IOC_NONE != _IOC_DIR(a_u4Command)) {
 		pBuff = kmalloc(sizeof(stCAM_CAL_INFO_STRUCT), GFP_KERNEL);

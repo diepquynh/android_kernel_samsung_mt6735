@@ -490,8 +490,8 @@ static ssize_t do_write_log_from_user(struct logger_log *log,
 					tm.tm_hour, tm.tm_min, tm.tm_sec, ts.tv_nsec, tmp);
 			}
 #ifdef CONFIG_SEC_BSP
-			if (strncmp(tmp, "!@Boot", 6) == 0) {
-				sec_boot_stat_add(tmp);
+			if (strncmp(log->buffer + log->w_off, "!@Boot", 6) == 0) {
+				sec_boot_stat_add(log->buffer + log->w_off);
 			}
 #endif
 		}

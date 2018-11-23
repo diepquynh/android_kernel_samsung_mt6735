@@ -52,8 +52,6 @@ struct ccci_md_slp_proc_ctlb {
 	unsigned int tail_size;
 	unsigned int tail_read;
 	struct mutex file_lock;
-	unsigned long long start_tick;
-	unsigned long long end_tick;
 };
 
 struct slp_log_item {
@@ -123,8 +121,6 @@ static int get_md_slp_raw_data(void *raw_mem_start, void *info_ctlb)
 			user_info->history_start_idx = ((wp_tmp - wp)>>3) + 1;
 		else if (wp > wp_tmp)
 			user_info->history_start_idx = ((CCCI_SMEM_MD_SLPLOG_SIZE - wp + wp_tmp)>>3) + 1;
-		else
-			user_info->history_start_idx = 1;
 	} else {
 		cpy_num = ((wp - sizeof(struct md_slp_history_info))>>3) + 1;
 		record_num = cpy_num;
@@ -139,8 +135,8 @@ static int get_md_slp_raw_data(void *raw_mem_start, void *info_ctlb)
 	}
 	/* Final adjust */
 	if (user_info->history_start_idx) { /* This means roll back case */
-		if (user_info->history_start_idx < (record_num - 4))
-			user_info->history_start_idx += 4; /* Some times the first recod is the newest,by pass it */
+		if (user_info->history_start_idx < (record_num - 2))
+			user_info->history_start_idx += 2; /* Some times the first recod is the newest,by pass it */
 		else
 			user_info->history_start_idx = record_num; /* Make no data out */
 	}
@@ -230,22 +226,14 @@ static ssize_t ccci_md_slp_read(struct file *file, char __user *buf, size_t size
 			return 0;
 		}
 
-		parsing_raw_data(user_info, &sleep_tick, &awake_tick, &start_tick, &end_tick);
-		user_info->start_tick = start_tick;
-		user_info->end_tick = end_tick;
-
 		/***********************************************/
 		/*****  2.Tine at start writing log to file  ***/
 		/***********************************************/
-		/* ll_tmp1 = local_clock(); */
-		/* do_div(ll_tmp2, 64000); */
-		/* usec1 = do_div(ll_tmp1, 1000000000); */
-		ll_tmp2 = start_tick;
-		ll_tmp1 = start_tick * MD_TICK_BASE;
-		usec1 = do_div(ll_tmp1, 1000000); /* Time from tick */
-
+		ll_tmp1 = local_clock();
+		ll_tmp2 = ll_tmp1;
+		usec1 = do_div(ll_tmp1, 1000000000);
 		ret =  snprintf(&user_info->tmp_buff[update], MD_SLP_TMP_BUF_SIZE - update,
-				"Start : %llu, %lu.%06lusec\n\n", ll_tmp2, (unsigned long)ll_tmp1, usec1);
+				"Start : %llu, %lu.%06lusec\n\n", ll_tmp2, (unsigned long)ll_tmp1, usec1 / 1000);
 		if (ret > 0)
 			update += ret;
 
@@ -256,13 +244,13 @@ static ssize_t ccci_md_slp_read(struct file *file, char __user *buf, size_t size
 				"Sleep Statics\n===== Client : 0 - MTK =====\n");
 		if (ret > 0)
 			update += ret;
-
+		parsing_raw_data(user_info, &sleep_tick, &awake_tick, &start_tick, &end_tick);
 		ll_tmp3 = sleep_tick + awake_tick;
 		ll_tmp1 = sleep_tick*100000000;
 		ll_tmp2 = awake_tick*100000000;
-		do_div(ll_tmp1, ll_tmp3);
-		ll_tmp2 = 100000000 - ll_tmp1;
+		usec1 = do_div(ll_tmp1, ll_tmp3);
 		usec1 = do_div(ll_tmp1, 1000000);
+		usec2 = do_div(ll_tmp2, ll_tmp3);
 		usec2 = do_div(ll_tmp2, 1000000);
 
 		ret =  snprintf(&user_info->tmp_buff[update], MD_SLP_TMP_BUF_SIZE - update,
@@ -319,60 +307,33 @@ static ssize_t ccci_md_slp_read(struct file *file, char __user *buf, size_t size
 	if (user_info->history_read_out_num == 0) /* First read out */
 		offset = (user_info->history_start_idx)<<3;
 	else
-		offset = (user_info->history_start_idx + user_info->history_read_out_num)<<3;
+		offset = (user_info->history_start_idx + user_info->history_read_out_num - 1)<<3;
 
 	slp_record = (struct slp_log_item *)&user_info->history_buff[offset];
 
-	record_num = user_info->history_log_num - user_info->history_read_out_num;
-	while ((size > MD_SLP_ONE_LINE_SIZE) && (record_num > 1)) {
-		tmp_tick = slp_record->tik_num;
-		tmp_info = slp_record->info;
+	record_num = user_info->history_log_num - user_info->history_read_out_num - 1;
+	while ((size > MD_SLP_ONE_LINE_SIZE) && (record_num > 0)) {
 		ll_tmp1 = slp_record->tik_num;
+		ll_tmp1 = ll_tmp1*MD_TICK_BASE;
 		slp_record++;
 		record_num--;
-		ll_tmp2 = slp_record->tik_num;
-
-		/* Using ll_tmp2 as delta */
-		if (ll_tmp2 < ll_tmp1) /* Roll back case */
-			ll_tmp2 = ll_tmp2 + 0xFFFFFFFF + 1 - ll_tmp1;
-		else
-			ll_tmp2 = ll_tmp2 - ll_tmp1;
-
-		ll_tmp2 = ll_tmp2 * MD_TICK_BASE;
-		ll_tmp1 = ll_tmp1 * MD_TICK_BASE;
-		usec2 = do_div(ll_tmp2, 1000000); /* delta */
-		usec1 = do_div(ll_tmp1, 1000000); /* Time from tick */
-		if (tmp_info & (1<<31))
-			ch = 'W';
-		else
-			ch = 'S';
-		ret = snprintf(user_info->tmp_buff, MD_SLP_TMP_BUF_SIZE,
-				"%010u %05llu.%06lu    %c %05llu.%06lu\n",
-				tmp_tick, ll_tmp1, usec1, ch, ll_tmp2, usec2);
-		if (ret > 0) {
-			update = ret;
-			size -= update;
-			ret = copy_to_user(&buf[has_cpy], user_info->tmp_buff, update);
-			if (ret == 0)
-				has_cpy += update;
-			else
-				pr_err("[ccci1/mdslp]record copy fail\n");
-		}
-		user_info->history_read_out_num++;
-	}
-	if ((size > MD_SLP_ONE_LINE_SIZE) && (record_num > 0)) { /* The last one record */
 		tmp_tick = slp_record->tik_num;
 		tmp_info = slp_record->info;
-		ll_tmp1 = slp_record->tik_num;
-		ll_tmp1 = ll_tmp1 * MD_TICK_BASE;
-		usec1 = do_div(ll_tmp1, 1000000); /* Time from tick */
-		if (tmp_info & (1<<31))
-			ch = 'W';
+		ll_tmp2 = tmp_tick*MD_TICK_BASE;
+
+		if (ll_tmp2 < ll_tmp1)
+			ll_tmp1 = ll_tmp2 + 0xFFFFFFFF + 1 - ll_tmp1;
 		else
+			ll_tmp1 = ll_tmp2 - ll_tmp1;
+		usec1 = do_div(ll_tmp1, 1000000); /* delta */
+		usec2 = do_div(ll_tmp2, 1000000); /* Time from tick */
+		if (tmp_info & (1<<31))
 			ch = 'S';
+		else
+			ch = 'W';
 		ret = snprintf(user_info->tmp_buff, MD_SLP_TMP_BUF_SIZE,
-				"%010u %05llu.%06lu    %c -\n",
-				tmp_tick, ll_tmp1, usec1, ch);
+				"%010u %05llu.%06lu    %c %05llu.%06lu\r\n",
+				tmp_tick, ll_tmp2, usec2, ch, ll_tmp1, usec1);
 		if (ret > 0) {
 			update = ret;
 			size -= update;
@@ -387,15 +348,12 @@ static ssize_t ccci_md_slp_read(struct file *file, char __user *buf, size_t size
 
 	if (user_info->tail_size == 0) {
 		if ((size > MD_SLP_ONE_LINE_SIZE) && (record_num == 0)) { /* Means all data out */
-			/* ll_tmp1 = local_clock(); */
-			/* do_div(ll_tmp2, 64000); */
-			/* usec1 = do_div(ll_tmp1, 1000000000); */
-			ll_tmp2 = user_info->end_tick;
-			ll_tmp1 = user_info->end_tick * MD_TICK_BASE;
-			usec1 = do_div(ll_tmp1, 1000000); /* Time from tick */
+			ll_tmp1 = local_clock();
+			ll_tmp2 = ll_tmp1;
+			usec1 = do_div(ll_tmp1, 1000000000);
 			ret =  snprintf(user_info->tmp_buff, MD_SLP_TMP_BUF_SIZE,
 					"\nEnd : %llu, %lu.%06lusec\n\n", ll_tmp2,
-					(unsigned long)ll_tmp1, usec1);
+					(unsigned long)ll_tmp1, usec1 / 1000);
 			if (ret > 0) {
 				user_info->tail_size = ret;
 				update = ret;
@@ -453,7 +411,7 @@ static ssize_t ccci_md_slp_raw_read(struct file *file, char __user *buf, size_t 
 	while (size > 48) {
 		if (data_size == 0)
 			break;
-		cpy_size = snprintf(user_info->tmp_buff, MD_SLP_TMP_BUF_SIZE, "0x%08x 0x%08x 0x%08x 0x%08x\n",
+		cpy_size = snprintf(user_info->tmp_buff, MD_SLP_TMP_BUF_SIZE, "0x%08x 0x%08x 0x%08x 0x%08x\r\n",
 				cpy_start[i], cpy_start[i+1], cpy_start[i+2], cpy_start[i+3]);
 		i += 4;
 		ret = copy_to_user(&buf[has_copy], user_info->tmp_buff, cpy_size);

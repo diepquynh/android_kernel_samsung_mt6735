@@ -69,7 +69,7 @@ static int dump_register(void);
 static int button_press_debounce = 0x400;
 int cur_key = 0;
 struct head_dts_data accdet_dts_data;
-int accdet_auxadc_offset;
+s8 accdet_auxadc_offset;
 int accdet_irq;
 unsigned int gpiopin, headsetdebounce;
 unsigned int accdet_eint_type = IRQ_TYPE_LEVEL_LOW;/* default low_level trigger */
@@ -1357,29 +1357,12 @@ void accdet_get_dts_data(void)
 }
 void accdet_pmic_Read_Efuse_HPOffset(void)
 {
-	unsigned int efusevalue = 0;
-	unsigned int efusech4value = 0;
-	int  adc_ch4_efuse_oe = 0;
-	
+	s16 efusevalue;
 
-	efusevalue =  pmic_Read_Efuse_HPOffset(0x10);
-	accdet_auxadc_offset = (int)((efusevalue >> 8) & 0xFF);
-	if (accdet_auxadc_offset > 128)/* modify to solve the sign data issue */
-		accdet_auxadc_offset -= 256;
-	/* accdet_auxadc_offset = (accdet_auxadc_offset / 2); */
+	efusevalue = (s16) pmic_Read_Efuse_HPOffset(0x10);
+	accdet_auxadc_offset = (efusevalue >> 8) & 0xFF;
+	accdet_auxadc_offset = (accdet_auxadc_offset / 2);
 	ACCDET_INFO(" efusevalue = 0x%x, accdet_auxadc_offset = %d\n", efusevalue, accdet_auxadc_offset);
-
-	/* read auxadc efuse ADC_CH4_OE offset of 0x0EDC for workaround Titan efuse-line leakage */
-	efusech4value = pmic_pwrap_read(0x0EDC);
-	adc_ch4_efuse_oe = (int)(efusech4value & 0x07FF);
-	if (adc_ch4_efuse_oe > 1024) {
-		adc_ch4_efuse_oe = (2 * 1800 * (adc_ch4_efuse_oe - 2048)) / 32768;
-	} else {
-		adc_ch4_efuse_oe = (2 * 1800 * adc_ch4_efuse_oe) / 32768;
-	}
-	accdet_auxadc_offset  += adc_ch4_efuse_oe;/* update the offset */
-	accdet_auxadc_offset  = (accdet_auxadc_offset /2) ;
-	ACCDET_INFO("ch4_oe[0x0EDC]=0x%x,ch4_vol=%d mv, auxadc_offset=%d mv\n", efusech4value, adc_ch4_efuse_oe, accdet_auxadc_offset);
 }
 
 static inline void accdet_init(void)
@@ -1500,14 +1483,12 @@ static int dump_register(void)
 	int i = 0;
 
 	for (i = ACCDET_RSV; i <= ACCDET_RSV_CON1; i += 2)
-		ACCDET_DEBUG(" ACCDET_BASE + 0x%x= 0x%x\n", i, pmic_pwrap_read(ACCDET_BASE + i));
+		ACCDET_DEBUG(" ACCDET_BASE + %x=%x\n", i, pmic_pwrap_read(ACCDET_BASE + i));
 
-	ACCDET_DEBUG(" TOP_RST_ACCDET(0x%x) = 0x%x\n", TOP_RST_ACCDET, pmic_pwrap_read(TOP_RST_ACCDET));
-	ACCDET_DEBUG(" INT_CON_ACCDET(0x%x) = 0x%x\n", INT_CON_ACCDET, pmic_pwrap_read(INT_CON_ACCDET));
-	ACCDET_DEBUG(" TOP_CKPDN(0x%x) = 0x%x\n", TOP_CKPDN, pmic_pwrap_read(TOP_CKPDN));
-	ACCDET_DEBUG(" ACCDET_ADC_REG(0x%x) = 0x%x\n", ACCDET_ADC_REG, pmic_pwrap_read(ACCDET_ADC_REG));
-	ACCDET_DEBUG(" EFUSE_HPOFFSET(-0x10-) = 0x%x\n", pmic_Read_Efuse_HPOffset(0x10));
-	ACCDET_DEBUG(" CH4_EFUSE_OE(0x0EDC) = 0x%x\n", pmic_pwrap_read(0x0EDC));
+	ACCDET_DEBUG(" TOP_RST_ACCDET(0x%x) =%x\n", TOP_RST_ACCDET, pmic_pwrap_read(TOP_RST_ACCDET));
+	ACCDET_DEBUG(" INT_CON_ACCDET(0x%x) =%x\n", INT_CON_ACCDET, pmic_pwrap_read(INT_CON_ACCDET));
+	ACCDET_DEBUG(" TOP_CKPDN(0x%x) =%x\n", TOP_CKPDN, pmic_pwrap_read(TOP_CKPDN));
+	ACCDET_DEBUG(" ACCDET_ADC_REG(0x%x) =%x\n", ACCDET_ADC_REG, pmic_pwrap_read(ACCDET_ADC_REG));
 #ifdef CONFIG_ACCDET_PIN_SWAP
 	/*ACCDET_DEBUG(" 0x00004000 =%x\n",pmic_pwrap_read(0x00004000));*/
 	/*VRF28 power for PIN swap feature*/
@@ -1540,14 +1521,6 @@ static int cat_register(char *buf)
 	sprintf(buf_temp, "TOP_CKPDN[0x%x]=0x%x\n", TOP_CKPDN, pmic_pwrap_read(TOP_CKPDN));
 	strncat(buf, buf_temp, strlen(buf_temp));
 	sprintf(buf_temp, "ACCDET_ADC_REG[0x%x]=0x%x\n", ACCDET_ADC_REG, pmic_pwrap_read(ACCDET_ADC_REG));
-	strncat(buf, buf_temp, strlen(buf_temp));
-
-	sprintf(buf_temp, "ACCDET_AUXADCADC_REG[0x%x]=0x%x\n", ACCDET_AUXADC_REG, pmic_pwrap_read(ACCDET_AUXADC_REG));
-	strncat(buf, buf_temp, strlen(buf_temp));
-
-	sprintf(buf_temp, "EFUSE_HPOFFSET(-0x10-) = 0x%x=0x%x\n", ACCDET_ADC_REG, pmic_Read_Efuse_HPOffset(0x10));
-	strncat(buf, buf_temp, strlen(buf_temp));
-	sprintf(buf_temp, "CH4_EFUSE_OE(0x0EDC) = 0x%x\n", pmic_pwrap_read(0x0EDC));
 	strncat(buf, buf_temp, strlen(buf_temp));
 
 	return 0;

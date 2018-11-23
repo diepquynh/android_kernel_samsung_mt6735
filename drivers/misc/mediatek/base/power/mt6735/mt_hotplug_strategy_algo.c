@@ -607,7 +607,7 @@ ALGO_END_WO_ACTION:
 /*
  * hps algo - smp
  */
-
+#if 0
 static void algo_smp_limit(
 		struct cpumask *little_online_cpumask,
 		unsigned int little_num_base,
@@ -638,7 +638,7 @@ static void algo_smp_limit(
 	BUG_ON(val);
 	hps_ctxt.action |= BIT(ACTION_LIMIT_LITTLE);
 }
-
+#endif
 
 static void algo_smp_base(
 		struct cpumask *little_online_cpumask,
@@ -907,8 +907,8 @@ void hps_algo_smp(void)
 				hps_ctxt.little_num_limit_ultra_power_saving,
 				hps_ctxt.little_num_limit_power_serv);
 #else
-	little_num_limit = min3(hps_ctxt.little_num_limit_ultra_power_saving,
-				hps_ctxt.little_num_limit_thermal, hps_ctxt.little_num_limit_power_serv);
+	little_num_limit = min(hps_ctxt.little_num_limit_ultra_power_saving,
+				hps_ctxt.little_num_limit_power_serv);
 #endif
 
 	little_num_base = hps_ctxt.little_num_base_perf_serv;
@@ -932,13 +932,13 @@ void hps_algo_smp(void)
 	/*
 	 * algo - thermal, low battery
 	 */
-
+#if 0
 	algo_smp_limit(&little_online_cpumask,
 		little_num_base, little_num_limit, little_num_online);
 
 	if (hps_ctxt.action)
 		goto ALGO_END_WITH_ACTION;
-
+#endif
 
 	/*
 	 * algo - PerfService, heavy task detect

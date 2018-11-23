@@ -48,7 +48,7 @@ void sec_cmd_set_default_result(struct sec_cmd_data *data)
 {
 	char delim = ':';
 	memset(data->cmd_result, 0x00, SEC_CMD_RESULT_STR_LEN);
-	memcpy(data->cmd_result, data->cmd, SEC_CMD_STR_LEN);
+	memcpy(data->cmd_result, data->cmd, SEC_CMD_RESULT_STR_LEN);
 	strncat(data->cmd_result, &delim, 1);
 }
 
@@ -139,7 +139,7 @@ static ssize_t sec_cmd_store(struct device *dev,
 				param_cnt++;
 			}
 			cur++;
-		} while ((cur - buf <= len) && (param_cnt < SEC_CMD_PARAM_NUM));
+		} while (cur - buf <= len);
 	}
 
 	pr_info("%s %s: cmd = %s", SECLOG, __func__, sec_cmd_ptr->cmd_name);
@@ -241,7 +241,7 @@ static void sec_cmd_store_function(struct sec_cmd_data *data)
 				param_cnt++;
 			}
 			cur++;
-		} while ((cur - buf <= len) && (param_cnt < SEC_CMD_PARAM_NUM));
+		} while (cur - buf <= len);
 	}
 
 	pr_info("%s %s: cmd = %s", SECLOG, __func__, sec_cmd_ptr->cmd_name);
@@ -378,7 +378,7 @@ static ssize_t sec_cmd_list_show(struct device *dev,
 	list_for_each_entry(sec_cmd_ptr, &data->cmd_list_head, list) {
 		if (strncmp(sec_cmd_ptr->cmd_name, "not_support_cmd", 15)) {
 			snprintf(buffer_name, SEC_CMD_STR_LEN, "%s\n", sec_cmd_ptr->cmd_name);
-			strncat(buffer, buffer_name, SEC_CMD_STR_LEN);
+			strcat(buffer, buffer_name);
 		}
 	}
 

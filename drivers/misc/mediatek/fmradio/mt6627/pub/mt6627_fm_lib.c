@@ -1598,25 +1598,25 @@ static fm_s32 mt6627_soft_mute_control(fm_s32 value)
 {
 	fm_s32 ret = 0;
 
-	if (value == 0x01) {
-		WCN_DBG(FM_NTC | CHIP, "disable soft mute gain to 0x01\n");
+	if (value == 0) {
+		WCN_DBG(FM_NTC | CHIP, "disable soft mute gain\n");
 		fm_smg_ctl.state = SOFT_MUTE_GAIN_DISABLE;
 		fm_smg_ctl.value = 0x1;
-		ret = mt6627_coeff_memory_write(0x31D7, 0x1);
+		ret = mt6627_coeff_memory_write(0x31D8, 0x1);
 		if (ret)
 			WCN_DBG(FM_ERR | CHIP, "mt6627_write fail(%d)\n", ret);
-	} else if (value == 0x06) {
-		WCN_DBG(FM_NTC | CHIP, "disable soft mute gain to 0x06\n");
+	} else if (value == 0x15) {
+		WCN_DBG(FM_NTC | CHIP, "enable soft mute gain, set dafult level\n");
 		fm_smg_ctl.state = SOFT_MUTE_GAIN_ENABLE;
-		fm_smg_ctl.value = 0x6;
-		ret = mt6627_coeff_memory_write(0x31D7, 0x06);
+		fm_smg_ctl.value = 0x15;
+		ret = mt6627_coeff_memory_write(0x31D8, 0x15);
 		if (ret)
 			WCN_DBG(FM_ERR | CHIP, "mt6627_write fail(%d)\n", ret);
-	} else if ((value <= 0x15) && (value > 0x6)) {
+	} else if ((value <= 0x15) && (value >= 0x1)) {
 		WCN_DBG(FM_NTC | CHIP, "set soft mute gain to (%d)\n", value);
 		fm_smg_ctl.state = SOFT_MUTE_GAIN_SET;
 		fm_smg_ctl.value = value;
-		ret = mt6627_coeff_memory_write(0x31D7, value);
+		ret = mt6627_coeff_memory_write(0x31D8, value);
 		if (ret)
 			WCN_DBG(FM_ERR | CHIP, "mt6627_write fail(%d)\n", ret);
 	} else {

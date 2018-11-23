@@ -95,7 +95,7 @@ static fh_pll_t g_fh_pll[FH_PLL_NUM] = {
 	{FH_FH_ENABLE_SSC, FH_PLL_ENABLE, 0, MEMPLL_DEF_FREQ, 0},
 	{FH_FH_DISABLE, FH_PLL_ENABLE, 0, MMPLL_DEF_FREQ, 0},
 	{FH_FH_ENABLE_SSC, FH_PLL_ENABLE, 0, VENCPLL_DEF_FREQ, 0},
-	{FH_FH_ENABLE_SSC, FH_PLL_ENABLE, 0, MSDCPLL_DEF_FREQ, 0},
+	{FH_FH_DISABLE, FH_PLL_ENABLE, 0, MSDCPLL_DEF_FREQ, 0},
 	{FH_FH_DISABLE, FH_PLL_ENABLE, 0, TVDPLL_DEF_FREQ, 0}
 };
 
@@ -143,7 +143,7 @@ static const struct freqhopping_ssc ssc_vencpll_setting[] = {
 static const struct freqhopping_ssc ssc_msdcpll_setting[] = {
 	{0, 0, 0, 0, 0, 0},
 	{0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
-	{MSDCPLL_DEF_FREQ, 0, 9, 0, 2, 0xF6276},	/* 0 ~ -8% */
+	{MSDCPLL_DEF_FREQ, 0, 9, 0, 8, 0xF6276},	/* 0 ~ -8% */
 	{0, 0, 0, 0, 0, 0}
 };
 
@@ -254,7 +254,7 @@ static void mt_fh_hal_default_conf(void)
 	freqhopping_config(FH_MEM_PLLID, g_default_freq[FH_MEM_PLLID], true);
 	/* freqhopping_config(FH_MM_PLLID, g_default_freq[FH_MM_PLLID], true); */
 	freqhopping_config(FH_VENC_PLLID, g_default_freq[FH_VENC_PLLID], true);
-        freqhopping_config(FH_MSDC_PLLID, g_default_freq[FH_MSDC_PLLID], true);
+        /* freqhopping_config(FH_MSDC_PLLID, g_default_freq[FH_MSDC_PLLID], true); */
 	/* freqhopping_config(FH_TVD_PLLID, g_default_freq[FH_TVD_PLLID], true); */
 
 }

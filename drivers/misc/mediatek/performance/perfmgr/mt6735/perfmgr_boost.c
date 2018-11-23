@@ -57,7 +57,7 @@ void perfmgr_boost_core(int scn, int core)
 	if(coreToSet != PERFMGR_IGNORE)
 		hps_set_cpu_num_base(BASE_TOUCH_BOOST, coreToSet, 0);
 	else
-		hps_set_cpu_num_base(BASE_TOUCH_BOOST, 0, 0);
+		hps_set_cpu_num_base(BASE_TOUCH_BOOST, 1, 0);
 }
 
 void perfmgr_boost_freq(int scn, int freq)

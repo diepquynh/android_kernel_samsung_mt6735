@@ -24,7 +24,7 @@ extern bool           sdchg_idle_policy_set;
 extern unsigned int   sdchg_cpu_core_lock_num;
 #endif
 
-static unsigned int base_perf;
+static unsigned int base_perf, base_touch;
 int hps_set_cpu_num_base(enum hps_base_type_e type, unsigned int little_cpu,
 			 unsigned int big_cpu)
 {
@@ -36,7 +36,7 @@ int hps_set_cpu_num_base(enum hps_base_type_e type, unsigned int little_cpu,
 	if ((type < 0) || (type >= BASE_COUNT))
 		return -1;
 
-	if ((little_cpu > num_possible_little_cpus()) || (little_cpu < 0))
+	if ((little_cpu > num_possible_little_cpus()) || (little_cpu < 1))
 		return -1;
 
 	if (hps_ctxt.is_hmp && (big_cpu > num_possible_big_cpus()))
@@ -55,31 +55,19 @@ int hps_set_cpu_num_base(enum hps_base_type_e type, unsigned int little_cpu,
 	switch (type) {
 	case BASE_PERF_SERV:
 		base_perf = little_cpu;
-		hps_ctxt.little_num_base_perf_serv = max3(base_perf, hps_ctxt.little_num_base_perf_serv_touch,
-				hps_ctxt.little_num_base_perf_serv_proc);
-
+		hps_ctxt.little_num_base_perf_serv = max(base_perf, base_touch);
 		if (hps_ctxt.is_hmp)
 			hps_ctxt.big_num_base_perf_serv = big_cpu;
 		break;
 	case BASE_TOUCH_BOOST:
-		if (little_cpu == 0)
-			hps_ctxt.little_num_base_perf_serv_touch = 1;
-		else
-			hps_ctxt.little_num_base_perf_serv_touch = little_cpu;
-
-		/* check base */
-		hps_ctxt.little_num_base_perf_serv = max3(base_perf, hps_ctxt.little_num_base_perf_serv_touch,
-				hps_ctxt.little_num_base_perf_serv_proc);
-
+		base_touch = little_cpu;
+		hps_ctxt.little_num_base_perf_serv = max(base_perf, base_touch);
 		if (hps_ctxt.is_hmp)
 			hps_ctxt.big_num_base_perf_serv = big_cpu;
 		break;
 	default:
 		break;
 	}
-	pr_info("final result = %d, base_perf = %d, base_touch = %d, base_procfs = %d (%d)\n",
-		hps_ctxt.little_num_base_perf_serv, base_perf, hps_ctxt.little_num_base_perf_serv_touch,
-		hps_ctxt.little_num_base_perf_serv_proc, type);
 
 	if (hps_ctxt.is_hmp) {
 		num_online = num_online_big_cpus();

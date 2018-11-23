@@ -1698,7 +1698,6 @@ static void destroyWirelessDevice(void)
 static void wlanSetMulticastList(struct net_device *prDev)
 {
 	gPrDev = prDev;
-	DBGLOG(INIT, INFO, "wlanSetMulticastList...\n");
 	schedule_delayed_work(&workq, 0);
 }
 

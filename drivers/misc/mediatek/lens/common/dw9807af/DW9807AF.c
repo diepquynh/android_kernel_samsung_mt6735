@@ -311,19 +311,19 @@ int DW9807AF_Release(struct inode *a_pstInode, struct file *a_pstFile)
 
 		TargetPosition = (unsigned short)g_u4TargetPosition;
 
-		LOG_INF("Wait\n");
+            LOG_INF("Wait\n");
+        
 		for (i = TargetPosition; i >= 300 ; i -= 100) {
-			LOG_INF("AF_WriteReg(%d)\n", i);
-			s4AF_WriteReg(i);
-			usleep_range(5000, 7000);
+                s4AF_WriteReg(i);
+			usleep_range(1000, 2000);
 		}
 
-		for (i = 300 ; i >= 100 ; i -= 10) {
+		for (i = 300 ; i >= 0 ; i -= 10) {
 			s4AF_WriteReg(i);
-			LOG_INF("AF_WriteReg(%d)\n", i);
-			usleep_range(5000, 7000);
-		}
-	}
+			usleep_range(1000, 2000);
+            }
+            
+        }
 
 	if (*g_pAF_Opened) {
 		LOG_INF("Free\n");

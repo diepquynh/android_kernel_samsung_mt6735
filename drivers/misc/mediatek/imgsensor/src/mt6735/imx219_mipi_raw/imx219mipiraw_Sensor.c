@@ -177,8 +177,6 @@ static imgsensor_struct imgsensor = {
 	.i2c_write_id = 0x20,//record current sensor's i2c write id
 };
 
-int is_imx219_open = 0;
-extern void imx219_update_sysfs_information(void);
 
 /* Sensor output window information */
 static SENSOR_WINSIZE_INFO_STRUCT imgsensor_winsize_info[5] =	 
@@ -1198,10 +1196,7 @@ static kal_uint32 open(void)
 	}		 
 	if (imgsensor_info.sensor_id != sensor_id)
 		return ERROR_SENSOR_CONNECT_FAIL;
-
-	imx219_update_sysfs_information();
-	is_imx219_open = 1;
-
+	
 	/* initail sequence write in  */
 	sensor_init();
 	
@@ -1245,7 +1240,6 @@ static kal_uint32 open(void)
 *************************************************************************/
 static kal_uint32 close(void)
 {
-	is_imx219_open = 0;
 	LOG_INF("E\n");
 
 	/*No Need to implement this function*/ 

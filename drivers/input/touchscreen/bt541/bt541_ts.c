@@ -116,8 +116,7 @@
 #define DELAY_FOR_TRANSCATION			50
 #define DELAY_FOR_POST_TRANSCATION		10
 #define IUM_SET_TIMEOUT				64 /*1.7s*/
-#define BT541_HZ				1000
-#define ESD_SEC_HZ				1000
+#define HZ	1000
 /*PAT MODE*/
 
 #ifdef PAT_CONTROL
@@ -356,7 +355,6 @@ struct tsp_raw_data {
 	s16 hgap_data[TSP_CMD_NODE_NUM];
 	s16 reference_data[TSP_CMD_NODE_NUM*2 + TSP_CMD_NODE_NUM];
 	s16 gapjitter_data[TSP_CMD_NODE_NUM];
-	s16 dndjitter_data[TSP_CMD_NODE_NUM];
 };
 
 #if defined(CONFIG_SAMSUNG_LPM_MODE)
@@ -387,7 +385,6 @@ static void get_hfdnd_v_gap(void * device_data);
 static void get_hfdnd_h_gap(void * device_data);
 static void get_delta(void *device_data);
 static void run_reference_read (void *device_data);
-static void run_dndjitter_test(void *device_data);
 static void run_dnd_read(void *device_data);
 static void run_hfdnd_read(void *device_data);
 static void run_dnd_v_gap_read(void *device_data);
@@ -433,7 +430,6 @@ static struct sec_cmd bt541_commands[] = {
 	{SEC_CMD("get_dnd_all_data", get_reference),},
 	{SEC_CMD("run_delta_read", run_delta_read),},
 	{SEC_CMD("get_delta_all_data", get_delta),},
-	{SEC_CMD("dnd_jitter", run_dndjitter_test),},
 	{SEC_CMD("run_dnd_read", run_dnd_read),},
 	{SEC_CMD("get_dnd", get_dnd),},
 	{SEC_CMD("run_dnd_v_gap_read", run_dnd_v_gap_read),},
@@ -826,7 +822,7 @@ retry:
 	/* select register*/
 	ret = i2c_master_send(client , (u8 *)&reg , 2);
 	if (ret < 0) {
-		usleep_range(BT541_HZ, BT541_HZ);
+		usleep_range(HZ, HZ);
 		if (++count < 8)
 			goto retry;
 
@@ -863,7 +859,7 @@ static inline s32 write_data(struct i2c_client *client,
 retry:
 	ret = i2c_master_send(client , pkt , length + 2);
 	if (ret < 0) {
-		usleep_range(BT541_HZ, BT541_HZ);
+		usleep_range(HZ, HZ);
 
 		if (++count < 8)
 			goto retry;
@@ -901,7 +897,7 @@ static inline s32 write_cmd(struct i2c_client *client, u16 reg)
 retry:
 	ret = i2c_master_send(client , (u8 *)&reg , 2);
 	if (ret < 0) {
-		usleep_range(BT541_HZ, BT541_HZ);
+		usleep_range(HZ, HZ);
 
 		if (++count < 8)
 			goto retry;
@@ -930,7 +926,7 @@ retry:
 	/* select register */
 	ret = i2c_master_send(client , (u8 *)&reg , 2);
 	if (ret < 0) {
-		usleep_range(BT541_HZ, BT541_HZ);
+		usleep_range(HZ, HZ);
 
 		if (++count < 8)
 			goto retry;
@@ -966,7 +962,7 @@ static inline s32 read_firmware_data(struct i2c_client *client,
 		return ret;
 
 	/* for setup tx transaction. */
-	usleep_range(BT541_HZ, BT541_HZ);
+	usleep_range(HZ, HZ);
 
 	ret = i2c_master_recv(client , values , length);
 	if (ret < 0)
@@ -1314,7 +1310,7 @@ static void esd_timer_start(u16 sec, struct bt541_ts_info *info)
 	init_timer(&(info->esd_timeout_tmr));
 	info->esd_timeout_tmr.data = (unsigned long)(info);
 	info->esd_timeout_tmr.function = esd_timeout_handler;
-	info->esd_timeout_tmr.expires = jiffies + msecs_to_jiffies(sec * ESD_SEC_HZ);
+	info->esd_timeout_tmr.expires = jiffies + (HZ * sec);
 	info->p_esd_timeout_tmr = &info->esd_timeout_tmr;
 	add_timer(&info->esd_timeout_tmr);
 	spin_unlock_irqrestore(&info->lock, flags);
@@ -1434,13 +1430,13 @@ retry_power_sequence:
 		input_err(true, &client->dev, "Failed to send power sequence(nvm init)\n");
 		goto fail_power_sequence;
 	}
-	usleep_range(2*BT541_HZ, 2*BT541_HZ);
+	usleep_range(2*HZ, 2*HZ);
 
 	if (write_reg(client, 0xc001, 0x0001) != I2C_SUCCESS) {
 		input_err(true, &client->dev, "Failed to send power sequence(program start)\n");
 		goto fail_power_sequence;
 	}
-	usleep_range(FIRMWARE_ON_DELAY*BT541_HZ, FIRMWARE_ON_DELAY*BT541_HZ);	/* wait for checksum cal */
+	usleep_range(FIRMWARE_ON_DELAY*HZ, FIRMWARE_ON_DELAY*HZ);	/* wait for checksum cal */
 
 	if (write_reg(client, 0x002E, IUM_SET_TIMEOUT) != I2C_SUCCESS)
 		input_err(true, &client->dev, "%s: failed to set ium timeout\n", __func__);
@@ -1449,7 +1445,7 @@ retry_power_sequence:
 
 fail_power_sequence:
 	if (retry++ < 3) {
-		usleep_range(CHIP_ON_DELAY*BT541_HZ, CHIP_ON_DELAY*BT541_HZ);
+		usleep_range(CHIP_ON_DELAY*HZ, CHIP_ON_DELAY*HZ);
 		input_info(true, &client->dev, "retry = %d\n", retry);
 		goto retry_power_sequence;
 	}
@@ -1466,9 +1462,9 @@ static int bt541_power(struct bt541_ts_info *info, int enable)
 	if (info->pdata->vdd_en_flag) {
 		gpio_direction_output(info->pdata->gpio_ldo_en, enable);
 		if(enable == 0)
-			usleep_range(CHIP_OFF_DELAY*BT541_HZ, CHIP_OFF_DELAY*BT541_HZ);
+			usleep_range(CHIP_OFF_DELAY*HZ, CHIP_OFF_DELAY*HZ);
 		else
-			usleep_range(CHIP_ON_DELAY*BT541_HZ, CHIP_ON_DELAY*BT541_HZ);
+			usleep_range(CHIP_ON_DELAY*HZ, CHIP_ON_DELAY*HZ);
 		input_info(true, &client->dev, "%s gpio_direction_ouput:%d\n", __func__, enable);
 	}
 
@@ -1481,7 +1477,7 @@ static int bt541_power(struct bt541_ts_info *info, int enable)
 						"failed  (%d)\n", __func__, ret);
 					return -EIO;
 				}
-				usleep_range(CHIP_ON_DELAY*BT541_HZ, CHIP_ON_DELAY*BT541_HZ);
+				usleep_range(CHIP_ON_DELAY*HZ, CHIP_ON_DELAY*HZ);
 				input_info(true, &client->dev, "%s power on\n", __func__);
 
 			} else {
@@ -1495,7 +1491,7 @@ static int bt541_power(struct bt541_ts_info *info, int enable)
 						"failed (%d)\n", __func__, ret);
 					return -EIO;
 				}
-				usleep_range(CHIP_ON_DELAY*BT541_HZ, CHIP_ON_DELAY*BT541_HZ);
+				usleep_range(CHIP_ON_DELAY*HZ, CHIP_ON_DELAY*HZ);
 				input_info(true, &client->dev, "%s power off\n", __func__);
 
 			} else {
@@ -1586,18 +1582,18 @@ void set_tsp_nvm_data(struct bt541_ts_info *info, u8 addr, u8 data)
 		goto fail_ium_random_write;
 	}
 	
-	usleep_range(10*BT541_HZ, 10*BT541_HZ);
+	usleep_range(10*HZ, 10*HZ);
 
 	if (write_cmd(client, 0xF0F8) != I2C_SUCCESS) {
 		input_err(true, &client->dev, "failed save ium\n", __func__);
 		goto fail_ium_random_write;
 	}
-	usleep_range(30*BT541_HZ, 30*BT541_HZ);
+	usleep_range(30*HZ, 30*HZ);
 
 	if (write_reg(client, 0xc104, 0x0000) != I2C_SUCCESS) {
 		input_err(true, &client->dev, "nvm wp enable\n", __func__);
 	}
-	usleep_range(10*BT541_HZ, 10*BT541_HZ);
+	usleep_range(10*HZ, 10*HZ);
 
 	return;
 
@@ -1605,7 +1601,7 @@ fail_ium_random_write:
 	if (write_reg(client, 0xc104, 0x0000) != I2C_SUCCESS) {
 		input_err(true, &client->dev, "nvm wp enable\n");
 	}
-	usleep_range(10*BT541_HZ, 10*BT541_HZ);
+	usleep_range(10*HZ, 10*HZ);
 
 	bt541_power_control(info, POWER_OFF);
 	bt541_power_control(info, POWER_ON_SEQUENCE);
@@ -1703,18 +1699,18 @@ static void ium_random_write(struct bt541_ts_info *info)
 		input_err(true, &client->dev, "failed to write nvm wp disable\n");
 		goto fail_ium_random_write;
 	}
-	usleep_range(10*BT541_HZ, 10*BT541_HZ);
+	usleep_range(10*HZ, 10*HZ);
 
 	if (write_cmd(client, 0xF0F8) != I2C_SUCCESS) {
 		input_err(true, &client->dev, "failed save ium\n");
 		goto fail_ium_random_write;
 	}
-	usleep_range(30*BT541_HZ, 30*BT541_HZ);
+	usleep_range(30*HZ, 30*HZ);
 
 	if (write_reg(client, 0xc104, 0x0000) != I2C_SUCCESS) {
 		input_err(true, &client->dev, "nvm wp enable\n");
 	}
-	usleep_range(10*BT541_HZ, 10*BT541_HZ);
+	usleep_range(10*HZ, 10*HZ);
 //////////for save rom end
 
 	enable_irq(info->irq);
@@ -1724,7 +1720,7 @@ fail_ium_random_write:
 	if (write_reg(client, 0xc104, 0x0000) != I2C_SUCCESS) {
 		input_err(true, &client->dev, "nvm wp enable\n");
 	}
-	usleep_range(10*BT541_HZ, 10*BT541_HZ);
+	usleep_range(10*HZ, 10*HZ);
 
 	bt541_power_control(info, POWER_OFF);
 	bt541_power_control(info, POWER_ON_SEQUENCE);
@@ -1795,7 +1791,7 @@ static void ium_write(struct bt541_ts_info *info)
 	
 	bt541_power_control(info, POWER_OFF);
 	bt541_power_control(info, POWER_ON);
-	musleep_range(10*BT541_HZ, 10*BT541_HZ);
+	musleep_range(10*HZ, 10*HZ);
 
 	if (write_reg(client, 0xc000, 0x0001) != I2C_SUCCESS) {
 		input_err(true, &client->dev, "power sequence error (vendor cmd enable)\n");
@@ -1816,7 +1812,7 @@ static void ium_write(struct bt541_ts_info *info)
 		goto fail_ium_write;
 	}
 
-	usleep_range(5*BT541_HZ, 5*BT541_HZ);
+	usleep_range(5*HZ, 5*HZ);
 
 	input_info(true, &client->dev, "init flash\n");
 
@@ -1829,7 +1825,7 @@ static void ium_write(struct bt541_ts_info *info)
 		input_err(true, &client->dev, "nvm wp enable\n");
 		goto fail_ium_write;
 	}
-	usleep_range(10*BT541_HZ, 10*BT541_HZ);
+	usleep_range(10*HZ, 10*HZ);
 	
 	if (write_cmd(client, BT541_INIT_FLASH) != I2C_SUCCESS) {
 		input_err(true, &client->dev, "failed to init flash\n");
@@ -1844,7 +1840,7 @@ static void ium_write(struct bt541_ts_info *info)
 				input_err(true, &client->dev, "failed to write nvm wp disable\n");
 				goto fail_ium_write;
 			}
-			usleep_range(10*BT541_HZ, 10*BT541_HZ);
+			usleep_range(10*HZ, 10*HZ);
 		}
 		for (i = 0; i < page_sz / TC_SECTOR_SZ; i++) {
 			/*zinitix_debug_msg("write :addr=%04x, len=%d\n",	flash_addr, TC_SECTOR_SZ);*/
@@ -1859,7 +1855,7 @@ static void ium_write(struct bt541_ts_info *info)
 
 		}
 
-		usleep_range(30*BT541_HZ, 30*BT541_HZ); /*for fuzing delay*/
+		usleep_range(30*HZ, 30*HZ); /*for fuzing delay*/
 	}
 
 	if (write_reg(client, 0xc003, 0x0000) != I2C_SUCCESS) {
@@ -1873,7 +1869,7 @@ fail_ium_write:
 	if (write_reg(client, 0xc104, 0x0000) != I2C_SUCCESS) {
 		input_err(true, &client->dev, "nvm wp enable\n");
 	}
-	usleep_range(10*BT541_HZ, 10*BT541_HZ);
+	usleep_range(10*HZ, 10*HZ);
 
 	bt541_power_control(info, POWER_OFF);
 	bt541_power_control(info, POWER_ON_SEQUENCE);
@@ -1899,7 +1895,7 @@ static void ium_read(struct bt541_ts_info *info)
 
 	bt541_power_control(info, POWER_OFF);
 	bt541_power_control(info, POWER_ON);
-	usleep_range(10*BT541_HZ, 10*BT541_HZ);
+	usleep_range(10*HZ, 10*HZ);
 
 	if (write_reg(client, 0xc000, 0x0001) != I2C_SUCCESS) {
 		input_err(true, &client->dev, "power sequence error (vendor cmd enable)\n");
@@ -1920,7 +1916,7 @@ static void ium_read(struct bt541_ts_info *info)
 		goto fail_ium_read;
 	}
 
-	usleep_range(5*BT541_HZ, 5*BT541_HZ);
+	usleep_range(5*HZ, 5*HZ);
 
 	input_info(true, &client->dev,"init flash\n");
 
@@ -2066,7 +2062,7 @@ static u8 ts_upgrade_firmware(struct bt541_ts_info *info,
 retry_upgrade:
 	bt541_power_control(info, POWER_OFF);
 	bt541_power_control(info, POWER_ON);
-	usleep_range(10*BT541_HZ, 10*BT541_HZ);
+	usleep_range(10*HZ, 10*HZ);
 
 	if (write_reg(client, 0xc000, 0x0001) != I2C_SUCCESS) {
 		input_err(true, &client->dev, "power sequence error (vendor cmd enable)\n");
@@ -2108,7 +2104,7 @@ retry_upgrade:
 		goto fail_upgrade;
 	}
 
-	usleep_range(5*BT541_HZ, 5*BT541_HZ);
+	usleep_range(5*HZ, 5*HZ);
 
 	input_info(true, &client->dev, "init flash\n");
 
@@ -2137,7 +2133,7 @@ retry_upgrade:
 				input_err(true, &client->dev, "nvm wp enable\n");
 				goto fail_upgrade;
 			}
-			usleep_range(10*BT541_HZ, 10*BT541_HZ);
+			usleep_range(10*HZ, 10*HZ);
 			for (i = 0; i < page_sz / TC_SECTOR_SZ; i++) {
 				/*zinitix_debug_msg("write :addr=%04x, len=%d\n",	flash_addr, TC_SECTOR_SZ);*/
 				/*zinitix_printk(KERN_INFO "writing :addr = %04x, len=%d \n", flash_addr, TC_SECTOR_SZ);*/
@@ -2155,7 +2151,7 @@ retry_upgrade:
 				input_err(true, &client->dev, "failed to write nvm wp disable\n");
 				goto fail_upgrade;
 			}
-			usleep_range(10*BT541_HZ, 10*BT541_HZ);
+			usleep_range(10*HZ, 10*HZ);
 		}
 		else
 #endif
@@ -2228,7 +2224,7 @@ retry_upgrade:
 		for (i = 0; i < 5; i++) {
 			if (read_data(client, BT541_CHECKSUM_RESULT,
 					(u8 *)&reg_val, 2) < 0) {
-				usleep_range(10*BT541_HZ, 10*BT541_HZ);
+				usleep_range(10*HZ, 10*HZ);
 				continue;
 			}
 		}
@@ -2329,13 +2325,13 @@ static bool ts_hw_calibration(struct bt541_ts_info *info)
 	
 	if (write_reg(client, BT541_TOUCH_MODE, 0x07) != I2C_SUCCESS)
 		return false;
-	usleep_range(10*BT541_HZ, 10*BT541_HZ);
+	usleep_range(10*HZ, 10*HZ);
 	write_cmd(client, BT541_CLEAR_INT_STATUS_CMD);
-	usleep_range(10*BT541_HZ, 10*BT541_HZ);
+	usleep_range(10*HZ, 10*HZ);
 	write_cmd(client, BT541_CLEAR_INT_STATUS_CMD);
 	msleep(50);
 	write_cmd(client, BT541_CLEAR_INT_STATUS_CMD);
-	usleep_range(10*BT541_HZ, 10*BT541_HZ);;
+	usleep_range(10*HZ, 10*HZ);;
 
 	if (write_cmd(client, BT541_CALIBRATE_CMD) != I2C_SUCCESS)
 		return false;
@@ -2343,7 +2339,7 @@ static bool ts_hw_calibration(struct bt541_ts_info *info)
 	if (write_cmd(client, BT541_CLEAR_INT_STATUS_CMD) != I2C_SUCCESS)
 		return false;
 
-	usleep_range(10*BT541_HZ, 10*BT541_HZ);
+	usleep_range(10*HZ, 10*HZ);
 	write_cmd(client, BT541_CLEAR_INT_STATUS_CMD);
 
 	/* wait for h/w calibration*/
@@ -2362,7 +2358,7 @@ static bool ts_hw_calibration(struct bt541_ts_info *info)
 
 		if (time_out++ == 4) {
 			write_cmd(client, BT541_CALIBRATE_CMD);
-			usleep_range(10*BT541_HZ, 10*BT541_HZ);
+			usleep_range(10*HZ, 10*HZ);
 			write_cmd(client, BT541_CLEAR_INT_STATUS_CMD);
 			input_err(true, &client->dev, "h/w calibration retry timeout.\n");
 		}
@@ -2424,7 +2420,7 @@ retry_init:
 		if (read_data(client, BT541_EEPROM_INFO_REG,
 					(u8 *)&chip_eeprom_info, 2) < 0) {
 			input_err(true, &client->dev, "Failed to read eeprom info(%d)\n", i);
-			usleep_range(10*BT541_HZ, 10*BT541_HZ);
+			usleep_range(10*HZ, 10*HZ);
 			continue;
 		} else
 			break;
@@ -2441,7 +2437,7 @@ retry_init:
 	for (i = 0; i < INIT_RETRY_CNT; i++) {
 		if (read_data(client, BT541_CHECKSUM_RESULT,
 					(u8 *)&chip_check_sum, 2) < 0) {
-			usleep_range(10*BT541_HZ, 10*BT541_HZ);
+			usleep_range(10*HZ, 10*HZ);
 			continue;
 		}
 
@@ -2693,14 +2689,12 @@ retry_init:
 		goto fail_init;
 
 	if (zinitix_bit_test(chip_eeprom_info, 0)) { /* hw calibration bit*/
-		input_err(true, &client->dev, "%s chip_eeprom_info error H/W Check\n", __func__);
-		/* disable chip interrupt */ 
-		/*if (ts_hw_calibration(info) == false)
+		if (ts_hw_calibration(info) == false)
 			goto fail_init;
 
+		/* disable chip interrupt */
 		if (write_reg(client, BT541_INT_ENABLE_FLAG, 0) != I2C_SUCCESS)
 			goto fail_init;
-		*/
 	}
 
 	/* initialize */
@@ -2820,11 +2814,10 @@ fail_init:
 		msleep(100);
 
 		/* hw calibration and make checksum */
-		input_info(true, &client->dev, "%s Don't hw calibration. this model use PAT\n", __func__);
-		/*if (ts_hw_calibration(info) == false) {
+		if (ts_hw_calibration(info) == false) {
 			input_info(true, &client->dev, "failed to initiallize\n");
 			return false;
-		}*/
+		}
 		goto retry_init;
 #endif
 	}
@@ -3352,7 +3345,7 @@ static void bt541_ts_late_resume(struct early_suspend *h)
 	}
 #if 0
 	write_cmd(info->client, BT541_WAKEUP_CMD);
-	usleep_range(BT541_HZ, BT541_HZ);
+	usleep_range(HZ, HZ);
 #else
 	bt541_power_control(info, POWER_ON_SEQUENCE);
 #endif
@@ -3652,7 +3645,7 @@ static bool ts_set_touchmode(u16 value)
 
 	/* clear garbage data */
 	for (i = 0; i < 10; i++) {
-		usleep_range(20*BT541_HZ, 20*BT541_HZ);
+		usleep_range(20*HZ, 20*HZ);
 		write_cmd(misc_info->client, BT541_CLEAR_INT_STATUS_CMD);
 	}
 
@@ -3731,7 +3724,7 @@ static bool ts_set_touchmode2(u16 value)
 
 	/* clear garbage data */
 	for (i = 0; i < 10; i++) {
-		usleep_range(20*BT541_HZ, 20*BT541_HZ);
+		usleep_range(20*HZ, 20*HZ);
 		write_cmd(misc_info->client, BT541_CLEAR_INT_STATUS_CMD);
 	}
 
@@ -3806,7 +3799,7 @@ static bool ts_set_touchmode16(u16 value)
 
 	/* clear garbage data */
 	for (i = 0; i < 10; i++) {
-		usleep_range(20*BT541_HZ, 20*BT541_HZ);
+		usleep_range(20*HZ, 20*HZ);
 		write_cmd(misc_info->client, BT541_CLEAR_INT_STATUS_CMD);
 	}
 
@@ -4358,133 +4351,6 @@ static void get_mis_cal(void * device_data)
 #if ESD_TIMER_INTERVAL
 	esd_timer_start(CHECK_ESD_TIMER, misc_info);
 #endif
-	return;
-}
-
-static bool ts_set_dndjitter_mode(void)
-{
-	int i;
-
-	down(&misc_info->work_lock);
-	if (misc_info->work_state != NOTHING) {
-		input_info(true, &misc_info->client->dev, "other process occupied.. (%d)\n",
-				misc_info->work_state);		
-		up(&misc_info->work_lock);
-		return -1;
-	}
-
-	misc_info->work_state = SET_MODE;
-
-	if (write_reg(misc_info->client, 0x014F, 0x0630) != I2C_SUCCESS)
-		input_err(true, &misc_info->client->dev, "Failed to set ISRC\n");
-
-	if (write_reg(misc_info->client, 0x0128, 0x040F) != I2C_SUCCESS)
-		input_err(true, &misc_info->client->dev,  "Failed to set SH_CTRL\n");
-
-	if (write_reg(misc_info->client, 0x012D, 0x0000) != I2C_SUCCESS)
-		input_err(true, &misc_info->client->dev,  "Failed to set YIO_EN\n");
-
-
-
-	if (write_reg(misc_info->client, BT541_DELAY_RAW_FOR_HOST,
-				RAWDATA_DELAY_FOR_HOST) != I2C_SUCCESS)
-		input_err(true, &misc_info->client->dev, "Fail,to set BT541_DELAY_RAW_FOR_HOST.\r\n");
-
-	if (write_reg(misc_info->client, BT541_TOUCH_MODE, 7) != I2C_SUCCESS)
-		input_err(true, &misc_info->client->dev, "[zinitix_touch] TEST Mode : "
-				"Fail to set ZINITX_TOUCH_MODE %d.\r\n", misc_info->touch_mode);
-
-	/* clear garbage data */
-	for (i = 0; i < 10; i++) {
-		mdelay(20);
-		write_cmd(misc_info->client, BT541_CLEAR_INT_STATUS_CMD);
-	}
-
-	misc_info->work_state = NOTHING;
-	up(&misc_info->work_lock);
-	return 1;
-}
-
-static void run_dndjitter_test(void *device_data)
-{
-	struct sec_cmd_data *sec = (struct sec_cmd_data *)device_data;
-	struct bt541_ts_info *info = container_of(sec, struct bt541_ts_info, sec);
-	char buf[SEC_CMD_STR_LEN] = { 0 };
-	struct tsp_raw_data *raw_data = info->raw_data;
-	int x_num = info->cap_info.x_node_num, y_num = info->cap_info.y_node_num;
-	int i, j, offset, val, cur_val, next_val, x, y, node_num, k;
-	bool result = true;
-	int max = 0;
-	int fail_cnt = 0;
-
-#if ESD_TIMER_INTERVAL
-	esd_timer_stop(misc_info);
-#endif
-	disable_irq(info->irq);
-	sec_cmd_set_default_result(sec);
-
-	bt541_power_control(info, POWER_OFF);
-	bt541_power_control(info, POWER_ON_SEQUENCE);
-
-	ts_set_dndjitter_mode();
-
-	for(k = 0; k < 10 ; k++) {
-		if(get_raw_data(info, (u8 *)raw_data->dndjitter_data, 2)) {
-
-			input_info(true, &info->client->dev, "DND_JITTER start\n");
-
-			for(i = 0; i < x_num - 1; i++) {
-				for(j = 0; j < y_num - 1; j++) {
-					offset = (i * y_num) + j;
-					printk("%d ", raw_data->dndjitter_data[offset]);
-
-					cur_val = raw_data->dndjitter_data[offset];
-					next_val = raw_data->dndjitter_data[offset+1];
-					if (next_val > cur_val)
-						val = 100 - ((cur_val * 100) / next_val);
-					else
-						val = 100 - ((next_val * 100) / cur_val);
-					
-					if(val > max ) 
-						max = val;
-
-					if(val >= 11) {
-						fail_cnt++;
-						x = i;
-						y = j;
-						node_num = offset;
-						result = false;					
-						printk("%s Fail,%d,(%d,%d), data:%d vs %d, v:%d\n", __func__,
-							   node_num, x, y, raw_data->dndjitter_data[node_num], raw_data->dndjitter_data[node_num +1], val);
-					}
-				}
-				printk("%d ", raw_data->dndjitter_data[offset+1]);
-				printk("\n");
-			}
-		} else	{
-			result = false;
-			break;
-		}
-	}
-
-	if (result) {
-		input_info(true, &info->client->dev, "DND_JITTER Pass\n");
-		snprintf(buf, sizeof(buf), "OK\n");
-	} else {
-		input_err(true, &info->client->dev, "DND_JITTER Fail\n");
-		snprintf(buf, sizeof(buf), "Fail,%d,%d,%d,%d\n",
-				fail_cnt, 0, 10, max);
-	}
-
-	sec_cmd_set_cmd_result(sec, buf, strnlen(buf, sizeof(buf)));
-	sec->cmd_state = SEC_CMD_STATUS_OK;
-
-	bt541_power_control(info, POWER_OFF);
-	bt541_power_control(info, POWER_ON_SEQUENCE);
-	clear_report_data(info);
-	mini_init_touch(info);
-	enable_irq(info->irq);
-
 	return;
 }
 

@@ -240,11 +240,11 @@
 	/*1:ACC mode, 2:low cost without in bias, 6:low cost with in bias*/
 	accdet-mic-mode = <1>;
 	/*min_3pole--max_3pole--min_4pole--max_4pole--vol_bias*/
-	headset-vol-threshold = <0 594 595 1642 2800>;
+	headset-vol-threshold = <0 606 607 1680 2800>;
 	/*0--MD_MAX--UP_MAX--DW_MAX*/
-	headset-three-key-threshold = <0 122 212 488>;
+	headset-three-key-threshold = <0 127 216 488>;
 	/*0--MD_MAX--VOICE_MAX--UP_MAX--DW_MAX*/
-	headset-four-key-threshold = <0 85 122 212 488>;
+	headset-four-key-threshold = <0 91 127 216 488>;
 
 /* ACCDET GPIO standardization ACC mode use */
 	pinctrl-names = "default", "state_eint_as_int";
