@@ -1308,7 +1308,7 @@ static struct ctl_table vm_table[] = {
 	},
 
 #endif /* CONFIG_COMPACTION */
-#ifdef CONFIG_ZSWAP
+#if 0
 	{
 		.procname	= "zswap_compact",
 		.data		= &sysctl_zswap_compact,
