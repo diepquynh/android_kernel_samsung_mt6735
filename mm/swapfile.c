@@ -131,26 +131,6 @@ static inline unsigned char swap_count(unsigned char ent)
 	return ent & ~SWAP_HAS_CACHE;	/* may include SWAP_HAS_CONT flag */
 }
 
-bool is_swap_fast(swp_entry_t entry)
-{
-	struct swap_info_struct *p;
-	unsigned long type;
-
-	if (non_swap_entry(entry))
-		return false;
-
-	type = swp_type(entry);
-	if (type >= nr_swapfiles)
-		return false;
-
-	p = swap_info[type];
-
-	if (p->flags & SWP_FAST)
-		return true;
-
-	return false;
-}
-
 /* returns 1 if swap entry is freed */
 static int
 __try_to_reclaim_swap(struct swap_info_struct *si, unsigned long offset)
@@ -626,7 +606,7 @@ checks:
 		scan_base = offset = si->lowest_bit;
 
 	/* reuse swap entry of cache-only swap if not busy. */
-	if (vm_swap_full(si) && si->swap_map[offset] == SWAP_HAS_CACHE) {
+	if (vm_swap_full() && si->swap_map[offset] == SWAP_HAS_CACHE) {
 		int swap_was_freed;
 
 		spin_unlock(&si->lock);
@@ -667,8 +647,7 @@ scan:
 			spin_lock(&si->lock);
 			goto checks;
 		}
-		if (vm_swap_full(si) &&
-			si->swap_map[offset] == SWAP_HAS_CACHE) {
+		if (vm_swap_full() && si->swap_map[offset] == SWAP_HAS_CACHE) {
 			spin_lock(&si->lock);
 			goto checks;
 		}
@@ -683,8 +662,7 @@ scan:
 			spin_lock(&si->lock);
 			goto checks;
 		}
-		if (vm_swap_full(si) &&
-			si->swap_map[offset] == SWAP_HAS_CACHE) {
+		if (vm_swap_full() && si->swap_map[offset] == SWAP_HAS_CACHE) {
 			spin_lock(&si->lock);
 			goto checks;
 		}
@@ -1117,8 +1095,7 @@ int free_swap_and_cache(swp_entry_t entry)
 		 * Also recheck PageSwapCache now page is locked (above).
 		 */
 		if (PageSwapCache(page) && !PageWriteback(page) &&
-				(!page_mapped(page) ||
-				vm_swap_full(page_swap_info(page)))) {
+				(!page_mapped(page) || vm_swap_full())) {
 			delete_from_swap_cache(page);
 			SetPageDirty(page);
 		}
@@ -2669,9 +2646,6 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 				pr_err("swapon: discard_swap(%p): %d\n",
 					p, err);
 		}
-
-		if (blk_queue_fast(bdev_get_queue(p->bdev)))
-			p->flags |= SWP_FAST;
 	}
 
 	mutex_lock(&swapon_mutex);
