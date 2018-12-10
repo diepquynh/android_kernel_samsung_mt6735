@@ -387,7 +387,7 @@ static int ashmem_mmap(struct file *file, struct vm_area_struct *vma)
 			name = asma->name;
 
 		/* ... and allocate the backing shmem file */
-		vmfile = shmem_file_setup(name, asma->size, vma->vm_flags);
+		vmfile = shmem_file_setup(name, asma->size, vma->vm_flags, 0);
 		if (unlikely(IS_ERR(vmfile))) {
 			ret = PTR_ERR(vmfile);
 			goto out;
@@ -396,21 +396,13 @@ static int ashmem_mmap(struct file *file, struct vm_area_struct *vma)
 	}
 	get_file(asma->file);
 
-	/*
-	 * XXX - Reworked to use shmem_zero_setup() instead of
-	 * shmem_set_file while we're in staging. -jstultz
-	 */
-	if (vma->vm_flags & VM_SHARED) {
-		ret = shmem_zero_setup(vma);
-		if (ret) {
-			fput(asma->file);
-			goto out;
-		}
+	if (vma->vm_flags & VM_SHARED)
+		shmem_set_file(vma, asma->file);
+	else {
+		if (vma->vm_file)
+			fput(vma->vm_file);
+		vma->vm_file = asma->file;
 	}
-
-	if (vma->vm_file)
-		fput(vma->vm_file);
-	vma->vm_file = asma->file;
 
 out:
 	mutex_unlock(&ashmem_mutex);
